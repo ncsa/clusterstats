@@ -1,0 +1,11 @@
+*~
+Makefile
+container.json
+containers.json
+node.json
+nodes.json
+service.json
+services.json
+stats.json
+swarm.json
+version.json

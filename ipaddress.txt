@@ -1,0 +1,2 @@
+isda-swarm-master	141.142.211.62
+bd-swarm-master	141.142.210.91
