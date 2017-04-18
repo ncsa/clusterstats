@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Layouts &raquo; Split-Columns</title>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/bootstrap.min.css" />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/keen-dashboards.css" />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/dc.min.css">
+  <link rel="stylesheet" type="text/css" href="static/css/custom.css">
+</head>
+<body class="application">
+
+  <!-- menu bar -->
+  <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="#">Swarm Dashboard</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-fluid">
+
+    <div class="row">
+      <!-- Swarm Information -->
+      <div class="col-sm-6">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Swarm Information
+            <small class="pull-right">
+              <label class="pull-left" style="margin-right: 10px;">
+                Time Period:
+                <select>
+                  <option selected>Last 4 Hours</option>
+                  <option>Last 24 Hours</option>
+                  <option>Last Week</option>
+                  <option>Last Month</option>
+                  <option>Last Year</option>
+                  <option>All Time</option>
+                </select>
+              </label>
+              <!--<label>-->
+                <!--Block:-->
+                <!--<select>-->
+                  <!--<option>All blocks</option>-->
+                  <!--<option>900</option>-->
+                  <!--<option selected>800</option>-->
+                  <!--<option>700</option>-->
+                  <!--<option>500</option>-->
+                <!--</select>-->
+              <!--</label>-->
+            </small>
+          </div>
+          <div class="chart-stage">
+              <img data-src="holder.js/100%x120/white">
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+
+      <!-- Core Usage -->
+      <div class="col-sm-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Core Usage
+          </div>
+          <div class="chart-stage">
+              <img data-src="holder.js/100%x120/white">
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+
+      <!-- Memory Usage -->
+      <div class="col-sm-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Memory Usage
+          </div>
+          <div class="chart-stage">
+              <img data-src="holder.js/100%x120/white">
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row">
+      <!-- Core over time -->
+      <div class="col-sm-6">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Cores
+          </div>
+          <div class="chart-stage" id="cores-time-stage">
+            <div id="cores-time"></div>
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+
+      <!-- Memory over time -->
+      <div class="col-sm-6">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Memory
+          </div>
+          <div class="chart-stage" id="memory-time-stage">
+            <div id="memory-time"></div>
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="row">
+      <div class="col-sm-6 col-md-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Cell Title
+          </div>
+          <div class="chart-stage">
+            <img data-src="holder.js/100%x120/white">
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Cell Title
+          </div>
+          <div class="chart-stage">
+            <img data-src="holder.js/100%x120/white">
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Cell Title
+          </div>
+          <div class="chart-stage">
+            <img data-src="holder.js/100%x120/white">
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+      <div class="col-sm-6 col-md-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Cell Title
+          </div>
+          <div class="chart-stage">
+            <img data-src="holder.js/100%x120/white">
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+    <hr>
+
+    <p class="small text-muted">Built with &#9829; by <a href="https://keen.io">Keen IO</a></p>
+
+  </div>
+
+  <script type="text/javascript" src="static/lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/bootstrap.min.js"></script>
+
+  <script type="text/javascript" src="static/lib/js/holder.js"></script>
+  <script>
+    Holder.add_theme("white", { background:"#fff", foreground:"#a7a7a7", size:10 });
+  </script>
+
+  <!--<script type="text/javascript" src="static/lib/js/keen.min.js"></script>-->
+
+  <script src="static/lib/js/crossfilter.js"></script>
+  <script src="static/lib/js/d3.js"></script>
+  <script src="static/lib/js/dc.min.js"></script>
+  <script src="static/lib/js/queue.js"></script>
+  <script type="text/javascript" src="static/js/graphs.js"></script>
+
+</body>
+</html>

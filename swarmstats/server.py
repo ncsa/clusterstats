@@ -7,19 +7,21 @@ import json
 import logging
 import logging.config
 import os
+import random
 import socket
 import sys
 import threading
 import time
 import urllib
 
+import dateutil.parser
 import docker
 import flask
 import flask.ext
 import flask_restful
 from werkzeug.contrib.fixers import ProxyFix
 
-software_version = '2017-04-17T19:06:51Z'
+software_version = '2017-04-18T15:05:55Z'
 
 logger = None
 app = None
@@ -106,12 +108,16 @@ def main():
     # setup api
     context = args.context
     api = flask_restful.Api(app)
+    api.add_resource(Dashboard,
+                     context + "dashboard")
     api.add_resource(Version,
-                     context)
+                     context,
+                     context + "version")
     api.add_resource(DockerSwarm,
                      context + "swarm")
-    # api.add_resource(DockerSwarmStats,
-    #                  context + "swarm/stats/<string:period>")
+    api.add_resource(DockerSwarmStats,
+                     context + "swarm/stats",
+                     context + "swarm/stats/<string:period>")
     api.add_resource(DockerServices,
                      context + "services",
                      context + "services/<string:service>")
@@ -158,10 +164,20 @@ def config_logger(config_info):
 # REST API IMPLEMENTATIONS
 # ----------------------------------------------------------------------
 
+class Dashboard(flask_restful.Resource):
+    """dashboard page"""
+
+    def get(self):
+        global app
+
+        return app.send_static_file('dashboard.html')
+        # return flask.Response(flask.render_template("index.html"), mimetype='text/html')
+
+
 class Version(flask_restful.Resource):
     """Version information"""
 
-    def get(self, swarm=None, host=None, container=None):
+    def get(self):
         global version, app, context
 
         if 'routes' not in version:
@@ -185,6 +201,42 @@ class DockerSwarm(flask_restful.Resource):
         global swarm
 
         return swarm, 200
+
+
+class DockerSwarmStats(flask_restful.Resource):
+    """swarm information"""
+
+    def get(self, period=None):
+        global stats
+
+        if socket.gethostname() == 'elmo':
+            result = list()
+            date = datetime.datetime.utcnow() - datetime.timedelta(hours=4)
+            step = datetime.timedelta(hours=4) / 100
+            for x in range(100):
+                nodes = random.randint(18, 21)
+                memory = 4 * 1024 * 1024 * 1024 * nodes
+                cores = 2 * nodes
+                result.append({
+                    'time': date.isoformat(),
+                    'memory': {'total': memory, 'used': random.randint(0, memory)},
+                    'cores': {'total': cores, 'used': random.randint(0, cores)},
+                    'nodes': nodes,
+                    'services': random.randint(60, 79),
+                    'containers': random.randint(120, 500)
+                })
+                date += step
+            return result
+        else:
+            if 'swarm' in stats:
+                if not period:
+                    return list(stats['swarm'].keys()), 200
+                elif period in stats['swarm']:
+                    return stats['swarm'][period], 200
+                else:
+                    return 'no stats found for %s in swarm' % period, 404
+            else:
+                return 'no stats found for swarm', 404
 
 
 class DockerServices(flask_restful.Resource):
@@ -446,6 +498,8 @@ def collect_stats_swarm(url):
             url = 'tcp://%s:2375' % attrs['Status']['Addr']
             worker = docker.DockerClient(base_url=url)
             for container in worker.containers.list():
+                swarm['containers'] += 1
+
                 attrs = container.attrs
                 config = attrs['Config']
                 labels = config['Labels']
@@ -508,6 +562,8 @@ def collect_stats_node(url):
     }
 
     for container in client.containers.list():
+        swarm['containers'] += 1
+
         attrs = container.attrs
         config = attrs['Config']
         labels = config['Labels']
@@ -540,7 +596,7 @@ def collect_stats_node(url):
 
 
 def container_stats(container):
-    global containers, threads_stats, stats
+    global containers, threads_stats
 
     generator = container.stats(decode=True, stream=True)
     for stats in generator:
@@ -560,7 +616,7 @@ def container_stats(container):
 
 
 def compute_stats(new_swarm, new_services, new_nodes, new_containers):
-    global version, swarm, services, nodes, containers, threads_stats
+    global version, stats, swarm, services, nodes, containers, threads_stats
 
     # compute statistics
     for key, value in threads_stats.items():
@@ -577,6 +633,25 @@ def compute_stats(new_swarm, new_services, new_nodes, new_containers):
                 new_services[container['service']]['memory'] += value['memory']
                 new_nodes[container['node']]['memory']['used'] += value['memory']
 
+    # store stats
+    now = datetime.datetime.utcnow()
+    if 'swarm' not in stats:
+        stats['swarm'] = dict()
+    if '4hour' not in stats['swarm']:
+        stats['swarm']['4hour'] = list()
+    stats['swarm']['4hour'].append({
+        'time': now.isoformat(),
+        'memory': {'total': new_swarm['memory']['total'], 'used': new_swarm['memory']['used']},
+        'cores': {'total': new_swarm['cores']['total'], 'used': new_swarm['cores']['used']},
+    })
+    delta = datetime.timedelta(hours=4)
+    while len(stats['swarm']['4hour']) > 0:
+        firstdate = dateutil.parser.parse(stats['swarm']['4hour'][0]['time'])
+        if (now - firstdate) < delta:
+            break
+        stats['swarm']['4hour'].pop(0)
+
+    # humanize data
     new_swarm['memory']['used'] = humansize(new_swarm['memory']['used'])
     new_swarm['memory']['total'] = humansize(new_swarm['memory']['total'])
     for s in new_services.values():
