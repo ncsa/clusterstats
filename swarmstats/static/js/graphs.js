@@ -2,8 +2,12 @@
 var period = "4hour";
 
 // Charts
-var coresTimeChart = dc.compositeChart('#cores-time');
-var memoryTimeChart = dc.compositeChart('#memory-time');
+var coresTimeChart = dc.compositeChart('#cores-time'),
+    memoryTimeChart = dc.compositeChart('#memory-time'),
+    coresUsageChart = dc.numberDisplay("#cores-usage"),
+    coresTotalChart = dc.numberDisplay("#cores-total"),
+    memoryUsageChart = dc.numberDisplay("#memory-usage"),
+    memoryTotalChart = dc.numberDisplay("#memory-total");
 
 var bytesToString = function (bytes) {
     var fmt = d3.format('.0f');
@@ -45,8 +49,9 @@ function makeGraphs(error, swarmJson) {
 		d["memory"]["used"] = +d["memory"]["used"];
 	});
 
-    //Create a Crossfilter instance
+    // Create a Crossfilter instance
     var ndx = crossfilter(swarmdata);
+    var all = ndx.groupAll();
 
     // Define Dimensions
     var dateDim = ndx.dimension(function(d) { return d["time"]; });
@@ -57,12 +62,30 @@ function makeGraphs(error, swarmJson) {
 	var memoryTotalGroup = dateDim.group().reduceSum(function(d) { return d["memory"]["total"]; });
 	var memoryUsedGroup = dateDim.group().reduceSum(function(d) { return d["memory"]["used"]; });
 
-    var all = ndx.groupAll();
-
     // Define values (to be used in charts)
     var minDate = dateDim.bottom(1)[0]["time"];
     var maxDate = dateDim.top(1)[0]["time"];
 
+	// Create charts
+	coresUsageChart
+		.formatNumber(d3.format(".3s"))
+		.valueAccessor(function(d) { return d.cores.used; })
+		.group(dateDim);
+
+	coresTotalChart
+		.formatNumber(d3.format(".3s"))
+		.valueAccessor(function(d) { return d.cores.total; })
+		.group(dateDim);
+
+	memoryUsageChart
+		.formatNumber(d3.format(".3s"))
+		.valueAccessor(function(d) { return d.memory.used; })
+		.group(dateDim);
+
+	memoryTotalChart
+		.formatNumber(d3.format(".3s"))
+		.valueAccessor(function(d) { return d.memory.total; })
+		.group(dateDim);
 
     coresTimeChart
 		.width(parseInt(d3.select('#cores-time-stage').style('width'), 10))
@@ -110,39 +133,6 @@ function makeGraphs(error, swarmJson) {
         .brushOn(false)
 		.yAxis().ticks(4)
 		.tickFormat(bytesToString);
-
-    // resourceTypeChart
-    //     .width(300)
-    //     .height(250)
-    //     .dimension(resourceTypeDim)
-    //     .group(numProjectsByResourceType)
-    //     .xAxis().ticks(4);
-    //
-    // povertyLevelChart
-		// .width(300)
-		// .height(250)
-    //     .dimension(povertyLevelDim)
-    //     .group(numProjectsByPovertyLevel)
-    //     .xAxis().ticks(4);
-    //
-    //
-    // usChart.width(1000)
-		// .height(330)
-		// .dimension(stateDim)
-		// .group(totalDonationsByState)
-		// .colors(["#E2F2FF", "#C4E4FF", "#9ED2FF", "#81C5FF", "#6BBAFF", "#51AEFF", "#36A2FF", "#1E96FF", "#0089FF", "#0061B5"])
-		// .colorDomain([0, max_state])
-		// .overlayGeoJson(statesJson["features"], "state", function (d) {
-		// 	return d.properties.name;
-		// })
-		// .projection(d3.geo.albersUsa()
-    // 				.scale(600)
-    // 				.translate([340, 150]))
-		// .title(function (p) {
-		// 	return "State: " + p["key"]
-		// 			+ "\n"
-		// 			+ "Total Donations: " + Math.round(p["value"]) + " $";
-		// })
 
     dc.renderAll();
 };

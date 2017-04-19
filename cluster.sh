@@ -2,15 +2,15 @@
 
 # TODO add TLS security
 
-CLUSTER="isda-swarm"
+CLUSTER="bd-swarm"
 FLAVOR="m1.medium"
 KEY="kooper"
 IPADDR=""
 # stable beta alpha
-RELEASE="stable"
+RELEASE="alpha"
 SECURITY="NCSA"
 
-WORKERS=2
+WORKERS=20
 WAIT_WORKER="NO"
 
 echo "CLUSTER       : ${CLUSTER}"

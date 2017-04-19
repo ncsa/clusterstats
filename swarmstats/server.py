@@ -21,7 +21,7 @@ import flask.ext
 import flask_restful
 from werkzeug.contrib.fixers import ProxyFix
 
-software_version = '2017-04-18T15:05:55Z'
+software_version = '1.0'
 
 logger = None
 app = None
@@ -618,56 +618,57 @@ def container_stats(container):
 def compute_stats(new_swarm, new_services, new_nodes, new_containers):
     global version, stats, swarm, services, nodes, containers, threads_stats
 
-    # compute statistics
-    for key, value in threads_stats.items():
-        if key in new_containers:
-            container = new_containers[key]
-            if 'cores' in value:
-                new_swarm['cores']['used'] += value['cores']
-                container['cores'] = value['cores']
-                new_services[container['service']]['cores'] += value['cores']
-                new_nodes[container['node']]['cores']['used'] += value['cores']
-            if 'memory' in value:
-                new_swarm['memory']['used'] += value['memory']
-                container['memory'] = humansize(value['memory'])
-                new_services[container['service']]['memory'] += value['memory']
-                new_nodes[container['node']]['memory']['used'] += value['memory']
+    if version['updated'] != 'not yet':
+        # compute statistics
+        for key, value in threads_stats.items():
+            if key in new_containers:
+                container = new_containers[key]
+                if 'cores' in value:
+                    new_swarm['cores']['used'] += value['cores']
+                    container['cores'] = value['cores']
+                    new_services[container['service']]['cores'] += value['cores']
+                    new_nodes[container['node']]['cores']['used'] += value['cores']
+                if 'memory' in value:
+                    new_swarm['memory']['used'] += value['memory']
+                    container['memory'] = humansize(value['memory'])
+                    new_services[container['service']]['memory'] += value['memory']
+                    new_nodes[container['node']]['memory']['used'] += value['memory']
 
-    # store stats
-    now = datetime.datetime.utcnow()
-    if 'swarm' not in stats:
-        stats['swarm'] = dict()
-    if '4hour' not in stats['swarm']:
-        stats['swarm']['4hour'] = list()
-    stats['swarm']['4hour'].append({
-        'time': now.isoformat(),
-        'memory': {'total': new_swarm['memory']['total'], 'used': new_swarm['memory']['used']},
-        'cores': {'total': new_swarm['cores']['total'], 'used': new_swarm['cores']['used']},
-    })
-    delta = datetime.timedelta(hours=4)
-    while len(stats['swarm']['4hour']) > 0:
-        firstdate = dateutil.parser.parse(stats['swarm']['4hour'][0]['time'])
-        if (now - firstdate) < delta:
-            break
-        stats['swarm']['4hour'].pop(0)
+        # store stats
+        now = datetime.datetime.utcnow()
+        if 'swarm' not in stats:
+            stats['swarm'] = dict()
+        if '4hour' not in stats['swarm']:
+            stats['swarm']['4hour'] = list()
+        stats['swarm']['4hour'].append({
+            'time': now.isoformat(),
+            'memory': {'total': new_swarm['memory']['total'], 'used': new_swarm['memory']['used']},
+            'cores': {'total': new_swarm['cores']['total'], 'used': new_swarm['cores']['used']},
+        })
+        delta = datetime.timedelta(hours=4)
+        while len(stats['swarm']['4hour']) > 0:
+            firstdate = dateutil.parser.parse(stats['swarm']['4hour'][0]['time'])
+            if (now - firstdate) < delta:
+                break
+            stats['swarm']['4hour'].pop(0)
 
-    # humanize data
-    new_swarm['memory']['used'] = humansize(new_swarm['memory']['used'])
-    new_swarm['memory']['total'] = humansize(new_swarm['memory']['total'])
-    for s in new_services.values():
-        s['memory'] = humansize(s['memory'])
-    for h in new_nodes.values():
-        h['memory']['used'] = humansize(h['memory']['used'])
+        # humanize data
+        new_swarm['memory']['used'] = humansize(new_swarm['memory']['used'])
+        new_swarm['memory']['total'] = humansize(new_swarm['memory']['total'])
+        for s in new_services.values():
+            s['memory'] = humansize(s['memory'])
+        for h in new_nodes.values():
+            h['memory']['used'] = humansize(h['memory']['used'])
 
-    # overwrite old values
-    swarm = new_swarm
-    services = new_services
-    nodes = new_nodes
-    containers = new_containers
+        # overwrite old values
+        swarm = new_swarm
+        services = new_services
+        nodes = new_nodes
+        containers = new_containers
+        save_data()
 
     # save new information
     version['updated'] = datetime.datetime.utcnow().isoformat(timespec='seconds') + "Z"
-    save_data()
 
 
 # ----------------------------------------------------------------------
@@ -675,11 +676,8 @@ def compute_stats(new_swarm, new_services, new_nodes, new_containers):
 # ----------------------------------------------------------------------
 
 def load_data():
-    global logger, data_folder, version, stats, swarm, services, nodes, containers
+    global logger, stats, swarm, services, nodes, containers
 
-    version = load_json_data('version')
-    if 'version' not in version:
-        version = {'version': software_version, 'updated': 'not yet'}
     stats = load_json_data('stats')
     swarm = load_json_data('swarm')
     services = load_json_data('services')
@@ -699,10 +697,8 @@ def load_json_data(filename):
 
 
 def save_data():
-    global data_folder, version, stats, swarm, services, nodes, containers
+    global data_folder, stats, swarm, services, nodes, containers
 
-    with open(os.path.join(data_folder, 'version.json'), "w") as f:
-        json.dump(version, f)
     with open(os.path.join(data_folder, 'stats.json'), "w") as f:
         json.dump(stats, f)
     with open(os.path.join(data_folder, 'swarm.json'), "w") as f:
