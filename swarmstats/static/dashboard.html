@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Layouts &raquo; Split-Columns</title>
+  <title>Swarm Statistics Dashboard</title>
   <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
   <link rel="stylesheet" type="text/css" href="static/lib/css/bootstrap.min.css" />
   <link rel="stylesheet" type="text/css" href="static/lib/css/keen-dashboards.css" />
@@ -21,12 +21,104 @@
 
   <div class="container-fluid">
 
+    <h3>Current</h3>
+
     <div class="row">
-      <!-- Swarm Information -->
-      <div class="col-sm-6">
+
+      <div class="col-sm-3">
+
         <div class="chart-wrapper">
           <div class="chart-title">
-            Swarm Information
+            Core Usage
+          </div>
+          <div class="chart-stage" style="text-align: center">
+            <div id="cores-usage" style="display: inline-block; float: none"></div>
+            <div style="display: inline-block; float: none"> / </div>
+            <div id="cores-total" style="display: inline-block; float: none"></div>
+            <div style="display: inline-block; float: none"> = </div>
+            <div id="cores-perc" style="display: inline-block; float: none"></div>
+          </div>
+        </div>
+
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Memory Usage
+          </div>
+          <div class="chart-stage" style="text-align: center">
+            <div id="memory-usage" style="display: inline-block; float: none"></div>
+            <div style="display: inline-block; float: none"> / </div>
+            <div id="memory-total" style="display: inline-block; float: none"></div>
+            <div style="display: inline-block; float: none"> = </div>
+            <div id="memory-perc" style="display: inline-block; float: none"></div>
+          </div>
+        </div>
+
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Disk Usage
+          </div>
+          <div class="chart-stage" style="text-align: center">
+            <div id="disk-usage" style="display: inline-block; float: none"></div>
+            <div style="display: inline-block; float: none"> / </div>
+            <div id="disk-total" style="display: inline-block; float: none"></div>
+            <div style="display: inline-block; float: none"> = </div>
+            <div id="disk-perc" style="display: inline-block; float: none"></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="col-sm-6 col-md-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Top Services Cores
+          </div>
+          <div class="chart-stage" id="service-core-stage">
+            <div id="service-core"></div>
+          </div>
+          <div class="chart-notes">
+            Top 3 services, ordered by CPU usage.
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-md-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Top Services Memory
+          </div>
+          <div class="chart-stage" id="service-memory-stage">
+            <div id="service-memory"></div>
+          </div>
+          <div class="chart-notes">
+            Top 3 services, ordered by Memory usage.
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-6 col-md-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Top Services Storage Data
+          </div>
+          <div class="chart-stage" id="service-disk-data-stage">
+            <div id="service-disk-data"></div>
+          </div>
+          <div class="chart-notes">
+            Top 3 services, ordered by Disk Data usage.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3>History</h3>
+
+    <div class="row">
+      <!-- Core over time -->
+      <div class="col-sm-4">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Cores
             <small class="pull-right">
               <label class="pull-left" style="margin-right: 10px;">
                 Time Period:
@@ -51,57 +143,6 @@
               <!--</label>-->
             </small>
           </div>
-          <div class="chart-stage">
-              <img data-src="holder.js/100%x120/white">
-          </div>
-          <div class="chart-notes">
-            Notes about this chart
-          </div>
-        </div>
-      </div>
-
-      <!-- Core Usage -->
-      <div class="col-sm-3">
-        <div class="chart-wrapper">
-          <div class="chart-title">
-            Core Usage
-          </div>
-          <div class="chart-stage" style="text-align: center">
-            <div id="cores-usage" style="display: inline-block; float: none"></div>
-            <div style="display: inline-block; float: none"> / </div>
-            <div id="cores-total" style="display: inline-block; float: none"></div>
-          </div>
-          <div class="chart-notes">
-            Notes about this chart
-          </div>
-        </div>
-      </div>
-
-      <!-- Memory Usage -->
-      <div class="col-sm-3">
-        <div class="chart-wrapper">
-          <div class="chart-title">
-            Memory Usage
-          </div>
-          <div class="chart-stage" style="text-align: center">
-            <div id="memory-usage" style="display: inline-block; float: none"></div>
-            <div style="display: inline-block; float: none"> / </div>
-            <div id="memory-total" style="display: inline-block; float: none"></div>
-          </div>
-          <div class="chart-notes">
-            Notes about this chart
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <div class="row">
-      <!-- Core over time -->
-      <div class="col-sm-6">
-        <div class="chart-wrapper">
-          <div class="chart-title">
-            Cores
-          </div>
           <div class="chart-stage" id="cores-time-stage">
             <div id="cores-time"></div>
           </div>
@@ -112,7 +153,7 @@
       </div>
 
       <!-- Memory over time -->
-      <div class="col-sm-6">
+      <div class="col-sm-4">
         <div class="chart-wrapper">
           <div class="chart-title">
             Memory
@@ -126,68 +167,33 @@
         </div>
       </div>
 
+      <!-- Disk over time -->
+      <div class="col-sm-4">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Disk
+          </div>
+          <div class="chart-stage" id="disk-time-stage">
+            <div id="disk-time"></div>
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="row">
-      <div class="col-sm-6 col-md-3">
-        <div class="chart-wrapper">
-          <div class="chart-title">
-            Cell Title
-          </div>
-          <div class="chart-stage">
-            <img data-src="holder.js/100%x120/white">
-          </div>
-          <div class="chart-notes">
-            Notes about this chart
-          </div>
-        </div>
-      </div>
-      <div class="col-sm-6 col-md-3">
-        <div class="chart-wrapper">
-          <div class="chart-title">
-            Cell Title
-          </div>
-          <div class="chart-stage">
-            <img data-src="holder.js/100%x120/white">
-          </div>
-          <div class="chart-notes">
-            Notes about this chart
-          </div>
-        </div>
-      </div>
-      <div class="col-sm-6 col-md-3">
-        <div class="chart-wrapper">
-          <div class="chart-title">
-            Cell Title
-          </div>
-          <div class="chart-stage">
-            <img data-src="holder.js/100%x120/white">
-          </div>
-          <div class="chart-notes">
-            Notes about this chart
-          </div>
-        </div>
-      </div>
-      <div class="col-sm-6 col-md-3">
-        <div class="chart-wrapper">
-          <div class="chart-title">
-            Cell Title
-          </div>
-          <div class="chart-stage">
-            <img data-src="holder.js/100%x120/white">
-          </div>
-          <div class="chart-notes">
-            Notes about this chart
-          </div>
-        </div>
-      </div>
     </div>
 
 
 
     <hr>
 
-    <p class="small text-muted">Built with &#9829; by <a href="https://keen.io">Keen IO</a></p>
+    <p class="small text-muted">
+      <span style="float: left">Created as part of <a href="https://browndog.ncsa.illinois.edu">Brown Dog</a></span>
+      <span style="float: right">Layout and style by <a href="https://keen.io">Keen IO</a></span>
+    </p>
 
   </div>
 

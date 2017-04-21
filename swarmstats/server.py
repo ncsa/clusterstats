@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 import argparse
+import copy
 import datetime
 import inspect
 import json
 import logging
 import logging.config
 import os
-import random
-import socket
 import sys
 import threading
 import time
@@ -18,7 +17,9 @@ import dateutil.parser
 import docker
 import flask
 import flask.ext
+import flask_basicauth
 import flask_restful
+import flask_cors
 from werkzeug.contrib.fixers import ProxyFix
 
 software_version = '1.0'
@@ -33,7 +34,7 @@ data_folder = '.'
 refresh = 60
 timeout = 5
 
-version = {'version': software_version, 'updated': 'not yet'}
+version = {'version': software_version, 'build': os.getenv('BUILD', 'unknown'), 'updated': 'not yet'}
 stats = dict()
 swarm = dict()
 services = dict()
@@ -50,6 +51,8 @@ def main():
                         help='application context (default=extractors)')
     parser.add_argument('--datadir', '-d', default=os.getenv("DATADIR", '.'),
                         help='location to store all data')
+    parser.add_argument('--layout', action='store_true',
+                        help='do not collect statistics.')
     parser.add_argument('--logging', '-l', default=os.getenv("LOGGER", None),
                         help='file or logging coonfiguration (default=None)')
     parser.add_argument('--node', '-n', default=os.getenv("NODE", None),
@@ -72,38 +75,55 @@ def main():
     # load data
     data_folder = args.datadir
     load_data()
-    version.pop('routes', None)
 
     # set up collector
-    refresh = args.refresh
-    if args.swarm and args.swarm != "":
-        if args.swarm.startswith('unix://'):
-            swarm_url = args.swarm
-        elif args.swarm.startswith('tcp://'):
-            swarm_url = args.swarm
-        elif ':' in args.swarm:
-            swarm_url = 'tcp://' + args.swarm
+    if not args.layout:
+        refresh = args.refresh
+        if args.swarm and args.swarm != "":
+            if args.swarm.startswith('unix://'):
+                swarm_url = args.swarm
+            elif args.swarm.startswith('tcp://'):
+                swarm_url = args.swarm
+            elif ':' in args.swarm:
+                swarm_url = 'tcp://' + args.swarm
+            else:
+                swarm_url = 'tcp://' + args.swarm + ':2375'
+        elif args.node and args.node != "":
+            if args.node.startswith('unix://'):
+                node_url = args.node
+            elif args.node.startswith('tcp://'):
+                node_url = args.node
+            elif ':' in args.node:
+                node_url = 'tcp://' + args.node
+            else:
+                node_url = 'tcp://' + args.node + ':2375'
         else:
-            swarm_url = 'tcp://' + args.swarm + ':2375'
-    elif args.node and args.node != "":
-        if args.node.startswith('unix://'):
-            node_url = args.node
-        elif args.node.startswith('tcp://'):
-            node_url = args.node
-        elif ':' in args.node:
-            node_url = 'tcp://' + args.node
-        else:
-            node_url = 'tcp://' + args.node + ':2375'
-    else:
-        logger.error("No swarm or node specified")
-        sys.exit(-1)
-    thread = threading.Thread(target=stats_thread)
-    thread.daemon = True
-    thread.start()
+            logger.error("No swarm or node specified")
+            sys.exit(-1)
+        thread = threading.Thread(target=stats_thread)
+        thread.daemon = True
+        thread.start()
 
     # setup app
     app = flask.Flask('extractors')
     app.wsgi_app = ProxyFix(app.wsgi_app)
+
+    # setup cors
+    flask_cors.CORS(app)
+
+    # setup basic auth
+    username = 'swarmstats'
+    if os.path.isfile('/run/secrets/username'):
+        with open('/run/secrets/username', 'r') as secret:
+            username = secret.readline()
+    password = 'browndog'
+    if os.path.isfile('/run/secrets/password'):
+        with open('/run/secrets/password', 'r') as secret:
+            password = secret.readline()
+    app.config['BASIC_AUTH_USERNAME'] = username
+    app.config['BASIC_AUTH_PASSWORD'] = password
+    app.config['BASIC_AUTH_FORCE'] = True
+    flask_basicauth.BasicAuth(app)
 
     # setup api
     context = args.context
@@ -142,6 +162,8 @@ def main():
 
 
 def config_logger(config_info):
+    global logger
+
     if config_info:
         if os.path.isfile(config_info):
             if config_info.endswith('.json'):
@@ -209,34 +231,15 @@ class DockerSwarmStats(flask_restful.Resource):
     def get(self, period=None):
         global stats
 
-        if socket.gethostname() == 'elmo':
-            result = list()
-            date = datetime.datetime.utcnow() - datetime.timedelta(hours=4)
-            step = datetime.timedelta(hours=4) / 100
-            for x in range(100):
-                nodes = random.randint(18, 21)
-                memory = 4 * 1024 * 1024 * 1024 * nodes
-                cores = 2 * nodes
-                result.append({
-                    'time': date.isoformat(),
-                    'memory': {'total': memory, 'used': random.randint(0, memory)},
-                    'cores': {'total': cores, 'used': random.randint(0, cores)},
-                    'nodes': nodes,
-                    'services': random.randint(60, 79),
-                    'containers': random.randint(120, 500)
-                })
-                date += step
-            return result
-        else:
-            if 'swarm' in stats:
-                if not period:
-                    return list(stats['swarm'].keys()), 200
-                elif period in stats['swarm']:
-                    return stats['swarm'][period], 200
-                else:
-                    return 'no stats found for %s in swarm' % period, 404
+        if 'swarm' in stats:
+            if not period:
+                return list(stats['swarm'].keys()), 200
+            elif period in stats['swarm']:
+                return stats['swarm'][period], 200
             else:
-                return 'no stats found for swarm', 404
+                return 'no stats found for %s in swarm' % period, 404
+        else:
+            return 'no stats found for swarm', 404
 
 
 class DockerServices(flask_restful.Resource):
@@ -428,15 +431,20 @@ def stats_thread():
     global logger, swarm_url, node_url, refresh, timeout
 
     while True:
+        start = datetime.datetime.utcnow()
         try:
             if swarm_url:
                 (swarm, services, nodes, containers) = collect_stats_swarm(swarm_url)
             else:
                 (swarm, services, nodes, containers) = collect_stats_node(node_url)
             compute_stats(swarm, services, nodes, containers)
+            version['time'] = (datetime.datetime.utcnow() - start).total_seconds()
         except:
             logger.exception("Error collecting stats.")
-        time.sleep(refresh)
+        elapsed = (datetime.datetime.utcnow() - start).total_seconds()
+        version['time'] = elapsed
+        if elapsed < refresh:
+            time.sleep(refresh - elapsed)
 
 
 def collect_stats_swarm(url):
@@ -447,6 +455,8 @@ def collect_stats_swarm(url):
     swarm = {
         'cores': {'total': 0, 'used': 0},
         'memory': {'total': 0, 'used': 0},
+        'disk': {'available': 0, 'used': 0, 'data': 0},
+        'managers': list(),
         'nodes': 0,
         'services': 0,
         'containers': 0
@@ -466,7 +476,8 @@ def collect_stats_swarm(url):
             'containers': list(),
             'nodes': list(),
             'cores': 0,
-            'memory': 0
+            'memory': 0,
+            'disk': {'used': 0, 'data': 0},
         }
 
     # collect nodes
@@ -478,45 +489,65 @@ def collect_stats_swarm(url):
         resources = description['Resources']
         cores = int(resources['NanoCPUs'] / 1000000000)
         memory = resources['MemoryBytes']
+        # TODO hack, assumption is each node has 40GB storage
+        disk = 30 * 1024 * 1024 * 1024
         nodes[node.short_id] = {
             'name': hostname,
             'addr': attrs['Status'].get('Addr', None),
             'cores': {'total': cores, 'used': 0},
-            'memory': {'total': humansize(memory), 'used': 0},
+            'memory': {'total': memory, 'used': 0},
+            'disk': {'available': disk, 'used': 0, 'data': 0},
+            'status': attrs['Spec']['Availability'],
             'services': list(),
             'containers': list()
         }
 
         swarm['nodes'] += 1
-        swarm['cores']['total'] += cores
-        swarm['memory']['total'] += memory
+        if attrs['Spec']['Role'] == 'manager':
+            swarm['managers'].append(node.short_id)
+        if attrs['Spec']['Availability'] == 'active':
+            swarm['cores']['total'] += cores
+            swarm['memory']['total'] += memory
+            swarm['disk']['available'] += disk
 
         # container information
         if 'Addr' in attrs['Status']:
-            if socket.gethostname() == 'elmo':
-                continue
             url = 'tcp://%s:2375' % attrs['Status']['Addr']
             worker = docker.DockerClient(base_url=url)
-            for container in worker.containers.list():
-                swarm['containers'] += 1
+            for c in worker.api.containers(size=True):
+                container = worker.containers.get(c['Id'])
 
                 attrs = container.attrs
                 config = attrs['Config']
                 labels = config['Labels']
+                # 'SizeRootFs' == size of all files
+                # 'SizeRw' == size of all files added to image
                 containers[container.short_id] = {
                     'name': container.name,
                     'status': container.status,
                     'cores': 0,
                     'memory': 0,
+                    'disk': {'used': c.get('SizeRootFs', 0), 'data': c.get('SizeRw', 0)},
                     'service': dict(),
                     'node': node.short_id
                 }
+
+                swarm['containers'] += 1
+                swarm['disk']['used'] += c.get('SizeRootFs', 0)
+                swarm['disk']['data'] += c.get('SizeRw', 0)
+
                 nodes[node.short_id]['containers'].append(container.short_id)
+                nodes[node.short_id]['disk']['used'] += c.get('SizeRootFs', 0)
+                nodes[node.short_id]['disk']['data'] += c.get('SizeRw', 0)
+                nodes[node.short_id]['containers'].append(container.short_id)
+
                 if 'com.docker.swarm.service.id' in labels and 'com.docker.swarm.service.name' in labels:
                     service_id = labels['com.docker.swarm.service.id'][:10]
                     containers[container.short_id]['service'] = service_id
                     services[service_id]['containers'].append(container.short_id)
                     services[service_id]['replicas'] += 1
+                    services[service_id]['disk']['used'] += c.get('SizeRootFs', 0)
+                    services[service_id]['disk']['data'] += c.get('SizeRw', 0)
                     if node.short_id not in services[service_id]['nodes']:
                         services[service_id]['nodes'].append(node.short_id)
                     if service_id not in nodes[node.short_id]['services']:
@@ -556,7 +587,7 @@ def collect_stats_node(url):
         'name': attrs['Name'],
         'url': url,
         'cores': {'total': cores, 'used': 0},
-        'memory': {'total': humansize(memory), 'used': 0},
+        'memory': {'total': memory, 'used': 0},
         'services': list(),
         'containers': list()
     }
@@ -605,7 +636,7 @@ def container_stats(container):
         cpu_percent = 0.0
         cpu_stats = stats['cpu_stats']
         precpu_stats = stats['precpu_stats']
-        memory = int(stats['memory_stats']['usage'])
+        memory = int(stats['memory_stats'].get('usage', "0"))
         if 'system_cpu_usage' in precpu_stats:
             system_delta = float(cpu_stats['system_cpu_usage']) - float(precpu_stats['system_cpu_usage'])
             cpu_delta = float(cpu_stats['cpu_usage']['total_usage']) - float(precpu_stats['cpu_usage']['total_usage'])
@@ -630,7 +661,7 @@ def compute_stats(new_swarm, new_services, new_nodes, new_containers):
                     new_nodes[container['node']]['cores']['used'] += value['cores']
                 if 'memory' in value:
                     new_swarm['memory']['used'] += value['memory']
-                    container['memory'] = humansize(value['memory'])
+                    container['memory'] = value['memory']
                     new_services[container['service']]['memory'] += value['memory']
                     new_nodes[container['node']]['memory']['used'] += value['memory']
 
@@ -640,25 +671,17 @@ def compute_stats(new_swarm, new_services, new_nodes, new_containers):
             stats['swarm'] = dict()
         if '4hour' not in stats['swarm']:
             stats['swarm']['4hour'] = list()
-        stats['swarm']['4hour'].append({
-            'time': now.isoformat(),
-            'memory': {'total': new_swarm['memory']['total'], 'used': new_swarm['memory']['used']},
-            'cores': {'total': new_swarm['cores']['total'], 'used': new_swarm['cores']['used']},
-        })
+        deepcopy = copy.deepcopy(new_swarm)
+        deepcopy.pop("managers")
+        deepcopy['time'] = now.isoformat()
+        stats['swarm']['4hour'].append(deepcopy)
+
         delta = datetime.timedelta(hours=4)
         while len(stats['swarm']['4hour']) > 0:
             firstdate = dateutil.parser.parse(stats['swarm']['4hour'][0]['time'])
             if (now - firstdate) < delta:
                 break
             stats['swarm']['4hour'].pop(0)
-
-        # humanize data
-        new_swarm['memory']['used'] = humansize(new_swarm['memory']['used'])
-        new_swarm['memory']['total'] = humansize(new_swarm['memory']['total'])
-        for s in new_services.values():
-            s['memory'] = humansize(s['memory'])
-        for h in new_nodes.values():
-            h['memory']['used'] = humansize(h['memory']['used'])
 
         # overwrite old values
         swarm = new_swarm
@@ -709,22 +732,6 @@ def save_data():
         json.dump(nodes, f)
     with open(os.path.join(data_folder, 'containers.json'), "w") as f:
         json.dump(containers, f)
-
-
-# ----------------------------------------------------------------------
-# HELPER FUNCTIONS
-# ----------------------------------------------------------------------
-
-def humansize(nbytes):
-    suffixes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-    if nbytes == 0:
-        return '0 B'
-    i = 0
-    while nbytes >= 1024 and i < len(suffixes)-1:
-        nbytes /= 1024.
-        i += 1
-    f = ('%.2f' % nbytes).rstrip('0').rstrip('.')
-    return '%s %s' % (f, suffixes[i])
 
 
 # ----------------------------------------------------------------------

@@ -1,10 +1,13 @@
 FROM python:3-onbuild
 MAINTAINER Rob Kooper <kooper@illinois.edu>
 
+ARG BUILD_VERSION
+
 ENV LOGGER="" \
     NODE="" \
     SWARMS="" \
-    DATADIR="/data"
+    DATADIR="/data" \
+    BUILD=${BUILD_VERSION:-unknown}
 
 VOLUME ["/data"]
 
