@@ -8,7 +8,7 @@ KEY="kooper"
 IPADDR=""
 # stable beta alpha
 RELEASE="alpha"
-SECURITY="NCSA"
+SECURITY="docker"
 
 WORKERS=20
 WAIT_WORKER="NO"
@@ -21,10 +21,13 @@ echo "SECURITY      : ${SECURITY}"
 SECURITY_ID=$( openstack security group list | awk "/ ${SECURITY} / { print \$2 }" )
 if [ "$SECURITY_ID" == "" ]; then
     echo "Create security group. Make sure you open all ports for both TCP and UDP to local network."
-    echo "Ingress IPv4  ICMP  Any 0.0.0.0/0"
-    echo "Ingress IPv4  TCP 1 - 65535 192.168.5.0/24"
-    echo "Ingress IPv4  UDP 1 - 65535 192.168.5.0/24"
-    echo "Ingress IPv4  TCP 1 - 65535 141.142.0.0/16"
+    echo "Make sure port 2375 and 2376 are closed to the outside, e.g. :"
+    echo "Ingress IPv4  ICMP   Any         0.0.0.0/0"
+    echo "Ingress IPv4  TCP      1 - 65535 192.168.5.0/24"
+    echo "Ingress IPv4  UDP      1 - 65535 192.168.5.0/24"
+    echo "Ingress IPv4  TCP      1 - 65535 141.142.0.0/16"
+    echo "Ingress IPv4  TCP      1 -  2374 0.0.0.0/0"
+    echo "Ingress IPv4  TCP   2377 - 65535 0.0.0.0/0"
     exit -1
 fi
 
