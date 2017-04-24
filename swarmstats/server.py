@@ -18,7 +18,6 @@ import docker
 import flask
 import flask.ext
 import flask_basicauth
-import flask_restful
 import flask_cors
 from werkzeug.contrib.fixers import ProxyFix
 
@@ -29,6 +28,7 @@ app = None
 swarm_url = None
 node_url = None
 threads_stats = dict()
+lock = threading.Lock()
 context = '/'
 data_folder = '.'
 refresh = 60
@@ -41,13 +41,16 @@ services = dict()
 nodes = dict()
 containers = dict()
 
+bp_api = flask.Blueprint('api',  __name__)
+bp_html = flask.Blueprint('html',  __name__, static_folder='static')
+
 
 def main():
     global logger, data_folder, app, swarm_url, node_url, refresh
 
     # parse command line arguments
     parser = argparse.ArgumentParser(description='Extractor registration system.')
-    parser.add_argument('--context', '-c', default='/',
+    parser.add_argument('--context', '-c', default=None,
                         help='application context (default=extractors)')
     parser.add_argument('--datadir', '-d', default=os.getenv("DATADIR", '.'),
                         help='location to store all data')
@@ -99,14 +102,22 @@ def main():
                 node_url = 'tcp://' + args.node + ':2375'
         else:
             logger.error("No swarm or node specified")
+            parser.print_help()
             sys.exit(-1)
         thread = threading.Thread(target=stats_thread)
         thread.daemon = True
         thread.start()
 
     # setup app
-    app = flask.Flask('extractors')
+    app = flask.Flask('swarmstats')
     app.wsgi_app = ProxyFix(app.wsgi_app)
+    if args.context:
+        context = args.context.rstrip('/')
+        app.register_blueprint(bp_html, url_prefix=context)
+        app.register_blueprint(bp_api, url_prefix=context + '/api')
+    else:
+        app.register_blueprint(bp_html, url_prefix=None)
+        app.register_blueprint(bp_api, url_prefix='/api')
 
     # setup cors
     flask_cors.CORS(app)
@@ -125,41 +136,13 @@ def main():
     app.config['BASIC_AUTH_FORCE'] = True
     flask_basicauth.BasicAuth(app)
 
-    # setup api
-    context = args.context
-    api = flask_restful.Api(app)
-    api.add_resource(Dashboard,
-                     context + "dashboard")
-    api.add_resource(Version,
-                     context,
-                     context + "version")
-    api.add_resource(DockerSwarm,
-                     context + "swarm")
-    api.add_resource(DockerSwarmStats,
-                     context + "swarm/stats",
-                     context + "swarm/stats/<string:period>")
-    api.add_resource(DockerServices,
-                     context + "services",
-                     context + "services/<string:service>")
-    api.add_resource(DockerServicesLogs,
-                     context + "services/<string:service>/logs")
-    # api.add_resource(DockerServicesStats,
-    #                  context + "services/<string:service>/stats/<string:period>")
-    api.add_resource(DockerNodes,
-                     context + "nodes",
-                     context + "nodes/<string:node>")
-    # api.add_resource(DockerNodesStats,
-    #                  context + "nodes/<string:node>/stats/<string:period>")
-    api.add_resource(DockerContainers,
-                     context + "containers",
-                     context + "containers/<string:container>")
-    api.add_resource(DockerContainersLog,
-                     context + "containers/<string:container>/logs")
-    # api.add_resource(DockerContainersStats,
-    #                  context + "containers/<string:container>/stats/<string:period>")
-
+    # start the app
     app.run(host="0.0.0.0", port=args.port)
 
+
+# ----------------------------------------------------------------------
+# HELPER FUNCTIONS
+# ----------------------------------------------------------------------
 
 def config_logger(config_info):
     global logger
@@ -182,169 +165,246 @@ def config_logger(config_info):
         logger.setLevel(logging.DEBUG)
 
 
+def get_stats(what, period):
+    '''
+    From the stats return the stats for the right period. If no period is given it will retunr
+    a list of the periods.
+    :param what: the stats to return, swar, container id, service id, etc.
+    :param period: period of stats to return 4hour, ...
+    :return: stats for that period, or list of periods
+    '''
+    global stats
+
+    if what in stats:
+        if not period:
+            return flask.jsonify(list(stats[what].keys()))
+        elif period in stats[what]:
+            return flask.jsonify(stats[what][period])
+        else:
+            return flask.Response('no stats found for %s in %s' % (period, what), status=404)
+    else:
+        return flask.Response('no stats found for %s' % what, status=404)
+
+
+def find_item(where, id):
+    value = where.get(id, None)
+    if value:
+        return (id, value)
+    else:
+        for k, v in where.items():
+            if v['name'] == id:
+                return (k, v)
+    return (None, None)
+
+
 # ----------------------------------------------------------------------
-# REST API IMPLEMENTATIONS
+# HTML PAGES
 # ----------------------------------------------------------------------
 
-class Dashboard(flask_restful.Resource):
-    """dashboard page"""
-
-    def get(self):
-        global app
-
-        return app.send_static_file('dashboard.html')
-        # return flask.Response(flask.render_template("index.html"), mimetype='text/html')
+@bp_html.route('/', defaults={'page': 'dashboard'})
+@bp_html.route('/<page>')
+def html_static(page):
+    global app
+    return app.send_static_file('%s.html' % page)
 
 
-class Version(flask_restful.Resource):
-    """Version information"""
+# ----------------------------------------------------------------------
+# VERSION API IMPLEMENTATION
+# ----------------------------------------------------------------------
 
-    def get(self):
-        global version, app, context
+@bp_api.route('/version')
+def api_version():
+    global version, app, context
 
-        if 'routes' not in version:
-            routes = list()
-            for rule in app.url_map.iter_rules():
-                options = {}
-                for arg in rule.arguments:
-                    options[arg] = "[{0}]".format(arg)
-                url = urllib.parse.unquote(flask.url_for(rule.endpoint, **options))
-                if url != '/static/[filename]':
-                    routes.append(urllib.parse.unquote(url))
-            routes.sort()
-            version['routes'] = routes
-        return version, 200
-
-
-class DockerSwarm(flask_restful.Resource):
-    """swarm information"""
-
-    def get(self):
-        global swarm
-
-        return swarm, 200
+    if 'routes' not in version:
+        routes = list()
+        for rule in app.url_map.iter_rules():
+            options = {}
+            for arg in rule.arguments:
+                options[arg] = "[{0}]".format(arg)
+            url = urllib.parse.unquote(flask.url_for(rule.endpoint, **options))
+            if url not in routes:
+                routes.append(urllib.parse.unquote(url))
+        routes.sort()
+        version['routes'] = routes
+    version['styles'] = flask.url_for('static', filename='style.css')
+    return flask.jsonify(version)
 
 
-class DockerSwarmStats(flask_restful.Resource):
-    """swarm information"""
+# ----------------------------------------------------------------------
+# SWARM API IMPLEMENTATION
+# ----------------------------------------------------------------------
 
-    def get(self, period=None):
-        global stats
+@bp_api.route('/swarm')
+def api_swarm():
+    global swarm
+    return flask.jsonify(swarm)
 
-        if 'swarm' in stats:
-            if not period:
-                return list(stats['swarm'].keys()), 200
-            elif period in stats['swarm']:
-                return stats['swarm'][period], 200
-            else:
-                return 'no stats found for %s in swarm' % period, 404
+
+@bp_api.route('/swarm/stats', defaults={'period': None})
+@bp_api.route('/swarm/stats/<period>')
+def api_swarm_stats(period):
+    return get_stats('swarm', period)
+
+
+# ----------------------------------------------------------------------
+# NODES API IMPLEMENTATION
+# ----------------------------------------------------------------------
+
+@bp_api.route('/nodes', defaults={'node': None})
+@bp_api.route('/nodes/<node>')
+def api_nodes(node):
+    global nodes
+
+    if node:
+        result = nodes.get(node, None)
+        if not result:
+            for x in nodes.values():
+                if x['name'] == node:
+                    result = x
+                    break
+        if result:
+            return flask.jsonify(result)
         else:
-            return 'no stats found for swarm', 404
+            return flask.Response('Node "%s" not found' % node, status=404)
+    else:
+        result = {k: v['name'] for k, v in nodes.items()}
+        return flask.jsonify(result)
 
 
-class DockerServices(flask_restful.Resource):
-    """Service information"""
+@bp_api.route('/nodes/<node>/stats', defaults={'period': None})
+@bp_api.route('/nodes/<node>/stats/<period>')
+def api_nodes_stats(node, period):
+    global nodes
 
-    def get(self, service=None):
-        global services
+    key = None
+    if node in nodes:
+        key = node
+    else:
+        for k, v in nodes.items():
+            if v['name'] == node:
+                key = k
+                break
+    if key:
+        return get_stats(key, period)
+    else:
+        return flask.Response('Node "%s" not found' % node, status=404)
 
-        if service:
-            result = services.get(service, None)
-            if not result:
-                for x in services.values():
-                    if x['name'] == service:
-                        result = x
-                        break
-            if result:
-                return result, 200
-            else:
-                return 'no service found with id=%s' % service, 404
+
+# ----------------------------------------------------------------------
+# SERVICES API IMPLEMENTATION
+# ----------------------------------------------------------------------
+
+@bp_api.route('/services', defaults={'service': None})
+@bp_api.route('/services/<service>')
+def api_services(service=None):
+    global services
+
+    if service:
+        result = services.get(service, None)
+        if not result:
+            for x in services.values():
+                if x['name'] == service:
+                    result = x
+                    break
+        if result:
+            return flask.jsonify(result)
         else:
-            return services, 200
+            return flask.Response('Service "%s" not found' % service, status=404)
+    else:
+        #result = {k: v['name'] for k, v in services.items()}
+        return flask.jsonify(services)
 
 
-class DockerServicesLogs(flask_restful.Resource):
-    """Service logs"""
+@bp_api.route('/services/<service>/logs')
+def api_services_logs(service):
+    global services, swarm_url
 
-    def get(self, service=None):
-        global services, swarm_url
+    lines = int(flask.request.args.get('lines', '20'))
+    if lines == 0:
+        lines = 'all'
+    log = service_log(service, lines=lines)
+    if log or log == '':
+        return flask.Response(log, mimetype='text/ascii')
+    else:
+        return flask.Response('No logs found for %s' % service, status=404)
 
-        if service:
-            lines = int(flask.request.args.get('lines', '20'))
-            if lines == 0:
-                lines = 'all'
-            log = service_log(service, lines=lines)
-            if log or log == '':
-                return flask.Response(log, mimetype='text/ascii', status=200)
-            else:
-                return 'no service found with id=%s' % service, 404
+
+@bp_api.route('/services/<service>/stats', defaults={'period': None})
+@bp_api.route('/services/<service>/stats/<period>')
+def api_services_stats(service, period):
+    global services
+
+    key = None
+    if service in services:
+        key = service
+    else:
+        for k, v in services.items():
+            if v['name'] == service:
+                key = k
+                break
+    if key:
+        return get_stats(key, period)
+    else:
+        return flask.Response('service "%s" not found' % service, status=404)
+
+
+# ----------------------------------------------------------------------
+# CONTAINERS API IMPLEMENTATION
+# ----------------------------------------------------------------------
+
+@bp_api.route('/containers', defaults={'container': None})
+@bp_api.route('/containers/<container>')
+def api_containers(container=None):
+    global containers
+
+    if container:
+        result = containers.get(container, None)
+        if not result:
+            for x in containers.values():
+                if x['name'] == container:
+                    result = x
+                    break
+        if result:
+            return flask.jsonify(result)
         else:
-            return 'no service given', 404
+            return flask.Response('container "%s" not found' % container, status=404)
+    else:
+        result = {k: v['name'] for k, v in containers.items()}
+        return flask.jsonify(result)
 
 
-class DockerNodes(flask_restful.Resource):
-    """Node information"""
+@bp_api.route('/containers/<container>/logs')
+def api_containers_logs(container):
+    global containers
 
-    def get(self, node=None):
-        global nodes
-
-        if node:
-            if node in nodes:
-                return nodes[node], 200
-            else:
-                return 'no node found with id=%(node)s', 404
-        else:
-            return nodes, 200
-
-
-class DockerContainers(flask_restful.Resource):
-    """Container information"""
-
-    def get(self, container=None):
-        global containers
-
-        if container:
-            result = containers.get(container, None)
-            if not result and len(container) > 10:
-                result = containers.get(container[:10], None)
-            if not result:
-                for x in containers.values():
-                    if x['name'] == container:
-                        result = x
-                        break
-            if result:
-                return result, 200
-            else:
-                return 'no container found with id=%s' % container, 404
-        else:
-            result = dict()
-            return containers, 200
+    lines = int(flask.request.args.get('lines', '20'))
+    if lines == 0:
+        lines = 'all'
+    log = container_log(container, lines=lines)
+    if log or log == '':
+        return flask.Response(log, mimetype='text/ascii')
+    else:
+        return flask.Response('No logs found for %s' % container, status=404)
 
 
-class DockerContainersLog(flask_restful.Resource):
-    """Container logs"""
+@bp_api.route('/containers/<container>/stats', defaults={'period': None})
+@bp_api.route('/containers/<container>/stats/<period>')
+def api_containers_stats(container, period):
+    global containers
 
-    def get(self, container=None):
-        global containers, nodes, timeout, logger
-
-        if container:
-            lines = int(flask.request.args.get('lines', '20'))
-            if lines == 0:
-                lines = 'all'
-            log = container_log(container, lines=lines, timestamps=False)
-            if log or log == '':
-                return flask.Response(log, mimetype='text/ascii', status=200)
-            else:
-                return 'no container found with id=%s' % container, 404
-        else:
-            return 'no container given', 404
-
-
-class DockerContainersStats(flask_restful.Resource):
-    """Container stats"""
-
-    def get(self, container=None):
-        return "not implmented", 200
+    key = None
+    if container in containers:
+        key = container
+    else:
+        for k, v in containers.items():
+            if v['name'] == container:
+                key = k
+                break
+    if key:
+        return get_stats(key, period)
+    else:
+        return flask.Response('container "%s" not found' % container, status=404)
 
 
 # ----------------------------------------------------------------------
@@ -553,17 +613,19 @@ def collect_stats_swarm(url):
                     if service_id not in nodes[node.short_id]['services']:
                         nodes[node.short_id]['services'].append(service_id)
 
-                if container.short_id not in threads_stats:
-                    thread = threading.Thread(target=container_stats, args=[container])
-                    thread.daemon = True
-                    thread.start()
-                    threads_stats[container.short_id] = dict()
+                with lock:
+                    if container.short_id not in threads_stats:
+                        thread = threading.Thread(target=container_stats, args=[container])
+                        thread.daemon = True
+                        thread.start()
+                        threads_stats[container.short_id] = dict()
+                        logger.info("Start collecting stats for %s" % container.short_id)
 
     return (swarm, services, nodes, containers)
 
 
 def collect_stats_node(url):
-    global threads_stats, timeout
+    global threads_stats, timeout, lock
 
     services = dict()
     nodes = dict()
@@ -617,17 +679,19 @@ def collect_stats_node(url):
             if service_id not in nodes['0']['services']:
                 nodes['0']['services'].append(service_id)
 
-        if container.short_id not in threads_stats:
-            thread = threading.Thread(target=container_stats, args=[container])
-            thread.daemon = True
-            thread.start()
-            threads_stats[container.short_id] = dict()
+        with lock:
+            if container.short_id not in threads_stats:
+                thread = threading.Thread(target=container_stats, args=[container])
+                thread.daemon = True
+                thread.start()
+                threads_stats[container.short_id] = dict()
+                logger.info("Start collecting stats for %s" % container.short_id)
 
     return (swarm, services, nodes, containers)
 
 
 def container_stats(container):
-    global containers, threads_stats
+    global containers, threads_stats, lock
 
     generator = container.stats(decode=True, stream=True)
     for stats in generator:
@@ -643,27 +707,30 @@ def container_stats(container):
             if system_delta > 0.0 and cpu_delta > 0.0:
                 cpu_percent = round((cpu_delta / system_delta) * float(len(cpu_stats['cpu_usage']['percpu_usage'])), 2)
         threads_stats[container.short_id] = {'cores': cpu_percent, 'memory': memory}
+    with lock:
+        del threads_stats[container.short_id]
     logger.info("Done collecting stats for %s" % container.short_id)
 
 
 def compute_stats(new_swarm, new_services, new_nodes, new_containers):
-    global version, stats, swarm, services, nodes, containers, threads_stats
+    global version, stats, swarm, services, nodes, containers, threads_stats, lock
 
     if version['updated'] != 'not yet':
         # compute statistics
-        for key, value in threads_stats.items():
-            if key in new_containers:
-                container = new_containers[key]
-                if 'cores' in value:
-                    new_swarm['cores']['used'] += value['cores']
-                    container['cores'] = value['cores']
-                    new_services[container['service']]['cores'] += value['cores']
-                    new_nodes[container['node']]['cores']['used'] += value['cores']
-                if 'memory' in value:
-                    new_swarm['memory']['used'] += value['memory']
-                    container['memory'] = value['memory']
-                    new_services[container['service']]['memory'] += value['memory']
-                    new_nodes[container['node']]['memory']['used'] += value['memory']
+        with lock:
+            for key, value in threads_stats.items():
+                if key in new_containers:
+                    container = new_containers[key]
+                    if 'cores' in value:
+                        new_swarm['cores']['used'] += value['cores']
+                        container['cores'] = value['cores']
+                        new_services[container['service']]['cores'] += value['cores']
+                        new_nodes[container['node']]['cores']['used'] += value['cores']
+                    if 'memory' in value:
+                        new_swarm['memory']['used'] += value['memory']
+                        container['memory'] = value['memory']
+                        new_services[container['service']]['memory'] += value['memory']
+                        new_nodes[container['node']]['memory']['used'] += value['memory']
 
         # store stats
         now = datetime.datetime.utcnow()

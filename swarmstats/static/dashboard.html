@@ -24,9 +24,40 @@
     <h3>Current</h3>
 
     <div class="row">
+      <div class="col-sm-2">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Number of nodes
+          </div>
+          <div class="chart-stage" style="text-align: center">
+            <div id="nodes-total" style="display: inline-block; float: none"></div>
+          </div>
+        </div>
+      </div>
 
-      <div class="col-sm-3">
+      <div class="col-sm-2">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Number of Services
+          </div>
+          <div class="chart-stage" style="text-align: center">
+            <div id="services-total" style="display: inline-block; float: none"></div>
+          </div>
+        </div>
+      </div>
 
+      <div class="col-sm-2">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Number of Containers
+          </div>
+          <div class="chart-stage" style="text-align: center">
+            <div id="containers-total" style="display: inline-block; float: none"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-2">
         <div class="chart-wrapper">
           <div class="chart-title">
             Core Usage
@@ -39,7 +70,9 @@
             <div id="cores-perc" style="display: inline-block; float: none"></div>
           </div>
         </div>
+      </div>
 
+      <div class="col-sm-2">
         <div class="chart-wrapper">
           <div class="chart-title">
             Memory Usage
@@ -52,7 +85,9 @@
             <div id="memory-perc" style="display: inline-block; float: none"></div>
           </div>
         </div>
+      </div>
 
+      <div class="col-sm-2">
         <div class="chart-wrapper">
           <div class="chart-title">
             Disk Usage
@@ -65,7 +100,22 @@
             <div id="disk-perc" style="display: inline-block; float: none"></div>
           </div>
         </div>
+      </div>
+    </div>
 
+    <div class="row">
+      <div class="col-sm-6 col-md-3">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Top Services Replicas
+          </div>
+          <div class="chart-stage" id="service-replicas-stage">
+            <div id="service-replicas"></div>
+          </div>
+          <div class="chart-notes">
+            Top 4 services, ordered by number of replicas.
+          </div>
+        </div>
       </div>
 
       <div class="col-sm-6 col-md-3">
@@ -77,7 +127,7 @@
             <div id="service-core"></div>
           </div>
           <div class="chart-notes">
-            Top 3 services, ordered by CPU usage.
+            Top 4 services, ordered by CPU usage.
           </div>
         </div>
       </div>
@@ -91,7 +141,7 @@
             <div id="service-memory"></div>
           </div>
           <div class="chart-notes">
-            Top 3 services, ordered by Memory usage.
+            Top 4 services, ordered by Memory usage.
           </div>
         </div>
       </div>
@@ -105,43 +155,37 @@
             <div id="service-disk-data"></div>
           </div>
           <div class="chart-notes">
-            Top 3 services, ordered by Disk Data usage.
+            Top 4 services, ordered by Disk Data usage.
           </div>
         </div>
       </div>
     </div>
 
-    <h3>History</h3>
+    <h3>History
+      <small class="pull-right">
+        <label class="pull-left" style="margin-right: 10px;">
+          Time Period:
+          <select>
+            <option selected>Last 4 Hours</option>
+            <option>Last 24 Hours</option>
+            <option>Last Week</option>
+            <option>Last Month</option>
+            <option>Last Year</option>
+            <option>All Time</option>
+          </select>
+        </label>
+        <label>
+          Show maximum:
+          <input type="checkbox" id="chkShowMax" checked onclick="toggleMax();">
+        </label>
+      </small>
+    </h3>
 
     <div class="row">
-      <!-- Core over time -->
       <div class="col-sm-4">
         <div class="chart-wrapper">
           <div class="chart-title">
             Cores
-            <small class="pull-right">
-              <label class="pull-left" style="margin-right: 10px;">
-                Time Period:
-                <select>
-                  <option selected>Last 4 Hours</option>
-                  <option>Last 24 Hours</option>
-                  <option>Last Week</option>
-                  <option>Last Month</option>
-                  <option>Last Year</option>
-                  <option>All Time</option>
-                </select>
-              </label>
-              <!--<label>-->
-                <!--Block:-->
-                <!--<select>-->
-                  <!--<option>All blocks</option>-->
-                  <!--<option>900</option>-->
-                  <!--<option selected>800</option>-->
-                  <!--<option>700</option>-->
-                  <!--<option>500</option>-->
-                <!--</select>-->
-              <!--</label>-->
-            </small>
           </div>
           <div class="chart-stage" id="cores-time-stage">
             <div id="cores-time"></div>
@@ -152,7 +196,6 @@
         </div>
       </div>
 
-      <!-- Memory over time -->
       <div class="col-sm-4">
         <div class="chart-wrapper">
           <div class="chart-title">
@@ -167,7 +210,6 @@
         </div>
       </div>
 
-      <!-- Disk over time -->
       <div class="col-sm-4">
         <div class="chart-wrapper">
           <div class="chart-title">
@@ -184,9 +226,48 @@
     </div>
 
     <div class="row">
+      <div class="col-sm-4">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Nodes
+          </div>
+          <div class="chart-stage" id="nodes-time-stage">
+            <div id="nodes-time"></div>
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-4">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Services
+          </div>
+          <div class="chart-stage" id="services-time-stage">
+            <div id="services-time"></div>
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+
+      <div class="col-sm-4">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Containers
+          </div>
+          <div class="chart-stage" id="containers-time-stage">
+            <div id="containers-time"></div>
+          </div>
+          <div class="chart-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
     </div>
-
-
 
     <hr>
 
