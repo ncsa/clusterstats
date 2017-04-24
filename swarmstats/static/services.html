@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Swarm Statistics Dashboard</title>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/bootstrap.min.css" />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/bootstrap-table.min.css" />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/keen-dashboards.css" />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/dc.min.css">
+  <link rel="stylesheet" type="text/css" href="static/css/custom.css">
+</head>
+<body class="application">
+
+  <!-- menu bar -->
+  <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="dashboard.html">Swarm Dashboard</a>
+      </div>
+      <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav navbar-left">
+          <li><a href="dashboard">Dashboard</a></li>
+          <li><a href="services">Services</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-fluid">
+
+    <h3>Services</h3>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="chart-wrapper">
+          <div class="chart-stage">
+            <table class="table table-striped" data-toggle="table" data-search="true" id="services">
+              <thead>
+                <tr>
+                  <th data-field="id" data-sortable="true">ID</th>
+                  <th data-field="service" data-sortable="true">Name</th>
+                  <th data-field="replicas" data-sortable="true">Replicas</th>
+                  <th data-field="cores" data-formatter="floatFormatter" data-sortable="true">Cores</th>
+                  <th data-field="memory" data-formatter="byteFormatter" data-sortable="true">Memory</th>
+                  <th data-field="disk" data-formatter="byteFormatter" data-sortable="true">Disk</th>
+                  <th data-field="action" data-formatter="actionFormatter" data-sortable="false">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <p class="small text-muted">
+      <span style="float: left">Created as part of <a href="https://browndog.ncsa.illinois.edu">Brown Dog</a></span>
+      <span style="float: right">Layout and style by <a href="https://keen.io">Keen IO</a></span>
+    </p>
+
+  </div>
+
+  <script type="text/javascript" src="static/lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/bootstrap.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/bootstrap-table.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/crossfilter.js"></script>
+  <script type="text/javascript" src="static/lib/js/d3.js"></script>
+  <script type="text/javascript" src="static/lib/js/dc.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/queue.js"></script>
+  <script type="text/javascript" src="static/js/services.js"></script>
+
+</body>
+</html>

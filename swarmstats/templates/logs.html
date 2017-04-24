@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Swarm Statistics Logs</title>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='lib/css/bootstrap.min.css') }}" />
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='lib/css/keen-dashboards.css') }}" />
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='lib/css/dc.min.css') }}">
+  <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/custom.css') }}">
+</head>
+<body class="application">
+
+  <!-- menu bar -->
+  <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <a class="navbar-brand" href="{{ url_for('html.html_page', page='dashboard') }}">Swarm Dashboard</a>
+      </div>
+      <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav navbar-left">
+          <li><a href="{{ url_for('html.html_page', page='dashboard') }}">Dashboard</a></li>
+          <li><a href="{{ url_for('html.html_page', page='services') }}">Services</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-fluid">
+
+    <h3>Service Logs : {{ service }}</h3>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="chart-wrapper">
+          <div class="chart-title">
+            Cores
+            <small class="pull-right">
+              <label class="pull-left" style="margin-right: 10px;">
+                Time Period:
+                <select id="log-lines">
+                  <option value="20" selected>Last 20 lines</option>
+                  <option value="50">Last 50 lines</option>
+                  <option value="100">Last 100 lines</option>
+                </select>
+              </label>
+              <label>
+                <a href="#" onclick="showLog();">Full Log</a>
+              </label>
+            </small>
+          </div>
+          <div class="chart-stage" id="logs-stage">
+              <pre><div id="logs"></div></pre>
+          </div>
+          <div class="chart-notes" id="logs-notes">
+            Notes about this chart
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <p class="small text-muted">
+      <span style="float: left">Created as part of <a href="https://browndog.ncsa.illinois.edu">Brown Dog</a></span>
+      <span style="float: right">Layout and style by <a href="https://keen.io">Keen IO</a></span>
+    </p>
+
+  </div>
+
+  <script type="text/javascript" src="{{ url_for('html.static', filename='lib/js/jquery.min.js') }}"></script>
+  <script type="text/javascript" src="{{ url_for('html.static', filename='lib/js/bootstrap.min.js') }}"></script>
+  <script type="text/javascript">
+    function showLogs() {
+      var url = "{{ url_for('api.api_services_logs', service=service) }}?lines=" + $("#log-lines").val();
+
+      $.get(url, function(data) {
+        $('#logs').text(data);
+        setTimeout(showLogs, 30 * 1000);
+      });
+    }
+
+    $("log-lines").change(showLogs);
+    $(window).load(showLogs);
+  </script>
+</body>
+</html>

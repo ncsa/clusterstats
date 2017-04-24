@@ -42,7 +42,7 @@ nodes = dict()
 containers = dict()
 
 bp_api = flask.Blueprint('api',  __name__)
-bp_html = flask.Blueprint('html',  __name__, static_folder='static')
+bp_html = flask.Blueprint('html',  __name__, static_folder='static', template_folder='templates')
 
 
 def main():
@@ -203,9 +203,14 @@ def find_item(where, id):
 
 @bp_html.route('/', defaults={'page': 'dashboard'})
 @bp_html.route('/<page>')
-def html_static(page):
+def html_page(page):
     global app
     return app.send_static_file('%s.html' % page)
+
+
+@bp_html.route('/services/<service>/logs')
+def html_services_logs(service):
+    return flask.render_template('logs.html', service=service)
 
 
 # ----------------------------------------------------------------------
@@ -318,7 +323,7 @@ def api_services(service=None):
 
 @bp_api.route('/services/<service>/logs')
 def api_services_logs(service):
-    global services, swarm_url
+    global services
 
     lines = int(flask.request.args.get('lines', '20'))
     if lines == 0:

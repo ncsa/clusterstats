@@ -14,7 +14,13 @@
   <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
     <div class="container-fluid">
       <div class="navbar-header">
-        <a class="navbar-brand" href="#">Swarm Dashboard</a>
+        <a class="navbar-brand" href="dashboard">Swarm Dashboard</a>
+      </div>
+      <div class="navbar-collapse collapse">
+        <ul class="nav navbar-nav navbar-left">
+          <li><a href="dashboard">Dashboard</a></li>
+          <li><a href="services">Services</a></li>
+        </ul>
       </div>
     </div>
   </div>
@@ -166,7 +172,7 @@
         <label class="pull-left" style="margin-right: 10px;">
           Time Period:
           <select>
-            <option selected>Last 4 Hours</option>
+            <option selected value="4hour">Last 4 Hours</option>
             <option>Last 24 Hours</option>
             <option>Last Week</option>
             <option>Last Month</option>
@@ -280,18 +286,10 @@
 
   <script type="text/javascript" src="static/lib/js/jquery.min.js"></script>
   <script type="text/javascript" src="static/lib/js/bootstrap.min.js"></script>
-
-  <script type="text/javascript" src="static/lib/js/holder.js"></script>
-  <script>
-    Holder.add_theme("white", { background:"#fff", foreground:"#a7a7a7", size:10 });
-  </script>
-
-  <!--<script type="text/javascript" src="static/lib/js/keen.min.js"></script>-->
-
-  <script src="static/lib/js/crossfilter.js"></script>
-  <script src="static/lib/js/d3.js"></script>
-  <script src="static/lib/js/dc.min.js"></script>
-  <script src="static/lib/js/queue.js"></script>
+  <script type="text/javascript" src="static/lib/js/crossfilter.js"></script>
+  <script type="text/javascript" src="static/lib/js/d3.js"></script>
+  <script type="text/javascript" src="static/lib/js/dc.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/queue.js"></script>
   <script type="text/javascript" src="static/js/graphs.js"></script>
 
 </body>

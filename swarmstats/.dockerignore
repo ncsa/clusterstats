@@ -1,5 +1,7 @@
 *~
 Makefile
+old
+
 container.json
 containers.json
 node.json
@@ -8,4 +10,3 @@ service.json
 services.json
 stats.json
 swarm.json
-version.json

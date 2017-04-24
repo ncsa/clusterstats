@@ -39,18 +39,6 @@ var dateToString = function(date) {
     }
 };
 
-function getQueryVariable(variable, defaultval) {
-    var query = window.location.search.substring(1);
-    var vars = query.split('&');
-    for (var i = 0; i < vars.length; i++) {
-        var pair = vars[i].split('=');
-        if (decodeURIComponent(pair[0]) == variable) {
-            return decodeURIComponent(pair[1]);
-        }
-    }
-    return defaultval;
-}
-
 function toggleMax() {
     showmax = document.getElementById('chkShowMax').checked;
     drawSubGraphs();
@@ -365,11 +353,4 @@ function drawSubGraphs() {
 
 }
 
-// window.addEventListener('resize', function() {
-// 	var width = parseInt(d3.select('#cores-time-stage').style('width'), 10);
-// 	coresTimeChart.width(width);
-//
-// 	dc.renderAll();
-// });
-
-window.onload = loadData;
+$(window).load(loadData);
