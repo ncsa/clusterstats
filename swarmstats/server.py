@@ -4,6 +4,7 @@ import argparse
 import copy
 import datetime
 import inspect
+import functools
 import json
 import logging
 import logging.config
@@ -17,7 +18,6 @@ import dateutil.parser
 import docker
 import flask
 import flask.ext
-import flask_basicauth
 import flask_cors
 from werkzeug.contrib.fixers import ProxyFix
 
@@ -122,20 +122,6 @@ def main():
     # setup cors
     flask_cors.CORS(app)
 
-    # setup basic auth
-    username = 'swarmstats'
-    if os.path.isfile('/run/secrets/username'):
-        with open('/run/secrets/username', 'r') as secret:
-            username = secret.readline()
-    password = 'browndog'
-    if os.path.isfile('/run/secrets/password'):
-        with open('/run/secrets/password', 'r') as secret:
-            password = secret.readline()
-    app.config['BASIC_AUTH_USERNAME'] = username
-    app.config['BASIC_AUTH_PASSWORD'] = password
-    app.config['BASIC_AUTH_FORCE'] = True
-    flask_basicauth.BasicAuth(app)
-
     # start the app
     app.run(host="0.0.0.0", port=args.port)
 
@@ -161,6 +147,7 @@ def config_logger(config_info):
     else:
         logging.basicConfig(format='%(asctime)-15s %(levelname)-7s : %(name)s - %(message)s',
                             level=logging.INFO)
+        logging.getLogger('werkzeug').setLevel(logging.WARNING)
         logger = logging.getLogger('extractors')
         logger.setLevel(logging.DEBUG)
 
@@ -197,18 +184,43 @@ def find_item(where, id):
     return (None, None)
 
 
+def check_auth(username, password):
+    if os.path.isfile('/run/secrets/' + username):
+        with open('/run/secrets/' + username, 'r') as secret:
+            return secret.readline() == password
+    else:
+        return password == "browndog"
+
+
+def requires_user(*users):
+    def wrapper(f):
+        @functools.wraps(f)
+        def wrapped(*args, **kwargs):
+            auth = flask.request.authorization
+            if not auth or not auth.username or not auth.password or not check_auth(auth.username, auth.password):
+                return flask.Response(headers={'WWW-Authenticate': 'Basic realm="swarmstats"'}, status=401)
+            elif auth.username not in users:
+                return flask.abort(403)
+            else:
+                return f(*args, **kwargs)
+        return wrapped
+    return wrapper
+
+
 # ----------------------------------------------------------------------
 # HTML PAGES
 # ----------------------------------------------------------------------
 
 @bp_html.route('/', defaults={'page': 'dashboard'})
 @bp_html.route('/<page>')
+@requires_user("admin", "viewer", "swarmstats")
 def html_page(page):
     global app
     return app.send_static_file('%s.html' % page)
 
 
 @bp_html.route('/services/<service>/logs')
+@requires_user("admin", "viewer", "swarmstats")
 def html_services_logs(service):
     return flask.render_template('logs.html', service=service)
 
@@ -218,6 +230,7 @@ def html_services_logs(service):
 # ----------------------------------------------------------------------
 
 @bp_api.route('/version')
+@requires_user("admin", "viewer", "swarmstats")
 def api_version():
     global version, app, context
 
@@ -241,6 +254,7 @@ def api_version():
 # ----------------------------------------------------------------------
 
 @bp_api.route('/swarm')
+@requires_user("admin", "viewer", "swarmstats")
 def api_swarm():
     global swarm
     return flask.jsonify(swarm)
@@ -248,6 +262,7 @@ def api_swarm():
 
 @bp_api.route('/swarm/stats', defaults={'period': None})
 @bp_api.route('/swarm/stats/<period>')
+@requires_user("admin", "viewer", "swarmstats")
 def api_swarm_stats(period):
     return get_stats('swarm', period)
 
@@ -258,6 +273,7 @@ def api_swarm_stats(period):
 
 @bp_api.route('/nodes', defaults={'node': None})
 @bp_api.route('/nodes/<node>')
+@requires_user("admin", "viewer", "swarmstats")
 def api_nodes(node):
     global nodes
 
@@ -279,6 +295,7 @@ def api_nodes(node):
 
 @bp_api.route('/nodes/<node>/stats', defaults={'period': None})
 @bp_api.route('/nodes/<node>/stats/<period>')
+@requires_user("admin", "viewer", "swarmstats")
 def api_nodes_stats(node, period):
     global nodes
 
@@ -302,6 +319,7 @@ def api_nodes_stats(node, period):
 
 @bp_api.route('/services', defaults={'service': None})
 @bp_api.route('/services/<service>')
+@requires_user("admin", "viewer", "swarmstats")
 def api_services(service=None):
     global services
 
@@ -322,6 +340,7 @@ def api_services(service=None):
 
 
 @bp_api.route('/services/<service>/logs')
+@requires_user("admin", "viewer", "swarmstats")
 def api_services_logs(service):
     global services
 
@@ -335,8 +354,36 @@ def api_services_logs(service):
         return flask.Response('No logs found for %s' % service, status=404)
 
 
+@bp_api.route('/services/<service>/scale/<count>', methods=['PUT'])
+@requires_user("admin", "swarmstats")
+def api_services_scale(service, count):
+    global services, swarm, swarm_url
+
+    if swarm_url:
+        (id, v) = find_item(services, service)
+        if id:
+            client = docker.DockerClient(swarm_url)
+            s = client.services.get(id)
+            if s:
+                spec = s.attrs['Spec']
+                s.update(name=spec['Name'],
+                         networks=spec.get('Networks', None),
+                         mode={'Replicated': {'Replicas': int(count)}})
+                oldcount = v['replicas']
+                v['replicas'] = int(count)
+                swarm['containers'] += (int(count) - oldcount)
+                return flask.Response('', status=204)
+            else:
+                return flask.Response('Service "%s" not found' % service, status=404)
+        else:
+            return flask.Response('Service "%s" not found' % service, status=404)
+    else:
+        return flask.Response('Could not scale service %s, not connected to swarm' % service, status=404)
+
+
 @bp_api.route('/services/<service>/stats', defaults={'period': None})
 @bp_api.route('/services/<service>/stats/<period>')
+@requires_user("admin", "viewer", "swarmstats")
 def api_services_stats(service, period):
     global services
 
@@ -360,6 +407,7 @@ def api_services_stats(service, period):
 
 @bp_api.route('/containers', defaults={'container': None})
 @bp_api.route('/containers/<container>')
+@requires_user("admin", "viewer", "swarmstats")
 def api_containers(container=None):
     global containers
 
@@ -380,6 +428,7 @@ def api_containers(container=None):
 
 
 @bp_api.route('/containers/<container>/logs')
+@requires_user("admin", "viewer", "swarmstats")
 def api_containers_logs(container):
     global containers
 
@@ -395,6 +444,7 @@ def api_containers_logs(container):
 
 @bp_api.route('/containers/<container>/stats', defaults={'period': None})
 @bp_api.route('/containers/<container>/stats/<period>')
+@requires_user("admin", "viewer", "swarmstats")
 def api_containers_stats(container, period):
     global containers
 
@@ -466,15 +516,8 @@ def container_log(container, lines=10, timestamps=False):
 
     node = nodes[containers[key]['node']]
     if 'url' in node:
-        url = node['url']
-    elif 'addr' in node:
-        url = 'tcp://' + node['addr'] + ':2375'
-    else:
-        url = None
-
-    if url:
         result = ""
-        client = docker.APIClient(base_url=url, version="auto", timeout=timeout)
+        client = docker.APIClient(base_url=node['url'], version="auto", timeout=timeout)
         log = client.logs(key, stdout=True, stderr=True, follow=False, timestamps=timestamps, tail=lines)
         if inspect.isgenerator(log):
             for row in log:
@@ -556,9 +599,16 @@ def collect_stats_swarm(url):
         memory = resources['MemoryBytes']
         # TODO hack, assumption is each node has 40GB storage
         disk = 30 * 1024 * 1024 * 1024
+        if 'Addr' in attrs['Status']:
+            if attrs['Status']['Addr'] == "127.0.0.1":
+                node_url = url
+            else:
+                node_url = 'tcp://%s:2375' % attrs['Status']['Addr']
+        else:
+            node_url = None
         nodes[node.short_id] = {
             'name': hostname,
-            'addr': attrs['Status'].get('Addr', None),
+            'url': node_url,
             'cores': {'total': cores, 'used': 0},
             'memory': {'total': memory, 'used': 0},
             'disk': {'available': disk, 'used': 0, 'data': 0},
@@ -576,9 +626,8 @@ def collect_stats_swarm(url):
             swarm['disk']['available'] += disk
 
         # container information
-        if 'Addr' in attrs['Status']:
-            url = 'tcp://%s:2375' % attrs['Status']['Addr']
-            worker = docker.DockerClient(base_url=url)
+        if node_url:
+            worker = docker.DockerClient(base_url=node_url)
             for c in worker.api.containers(size=True):
                 container = worker.containers.get(c['Id'])
 
@@ -604,7 +653,6 @@ def collect_stats_swarm(url):
                 nodes[node.short_id]['containers'].append(container.short_id)
                 nodes[node.short_id]['disk']['used'] += c.get('SizeRootFs', 0)
                 nodes[node.short_id]['disk']['data'] += c.get('SizeRw', 0)
-                nodes[node.short_id]['containers'].append(container.short_id)
 
                 if 'com.docker.swarm.service.id' in labels and 'com.docker.swarm.service.name' in labels:
                     service_id = labels['com.docker.swarm.service.id'][:10]

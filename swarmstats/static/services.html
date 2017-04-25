@@ -34,16 +34,21 @@
       <div class="col-sm-12">
         <div class="chart-wrapper">
           <div class="chart-stage">
-            <table class="table table-striped" data-toggle="table" data-search="true" id="services">
+            <table class="table table-striped" id="services"
+                   data-toggle="table"
+                   data-search="true"
+                   data-unique-id="id"
+                   data-url="api/services"
+                   data-response-handler="organize"
+                   data-show-refresh="true">
               <thead>
                 <tr>
-                  <th data-field="id" data-sortable="true">ID</th>
-                  <th data-field="service" data-sortable="true">Name</th>
-                  <th data-field="replicas" data-sortable="true">Replicas</th>
+                  <th data-field="name" data-sortable="true">Name</th>
+                  <th data-field="replicas" data-formatter="replicaFormatter" data-sortable="true">Replicas</th>
                   <th data-field="cores" data-formatter="floatFormatter" data-sortable="true">Cores</th>
                   <th data-field="memory" data-formatter="byteFormatter" data-sortable="true">Memory</th>
                   <th data-field="disk" data-formatter="byteFormatter" data-sortable="true">Disk</th>
-                  <th data-field="action" data-formatter="actionFormatter" data-sortable="false">Action</th>
+                  <th data-field="id" data-formatter="actionFormatter" data-sortable="false">Action</th>
                 </tr>
               </thead>
               <tbody>

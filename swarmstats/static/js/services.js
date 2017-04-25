@@ -1,25 +1,31 @@
-function loadData() {
-    queue()
-        .defer(d3.json, "api/services")
-        .await(drawTable);
-}
-
-function drawTable(error, services) {
+function organize(res) {
 	var rows = [];
-	$.each(services, function(k, v) {
+	$.each(res, function(k, v) {
 		rows.push({
-			id: k,
-			service: v.name,
+			name: v.name,
 			replicas: v.replicas,
 			cores: v.cores,
 			memory: v.memory,
 			disk: v.disk.data,
-			action: v.name
+			id: k
 		});
 	});
+    return rows;
+}
 
-	$("#services").bootstrapTable('load', rows);
-
+function replicaFormatter(x, row) {
+    result = x + ' ';
+    if (x < 10) {
+        result += '<a href="#" onclick="scale(\'' + row.id + '\', ' + (x+1) + ')">' +
+                  '<span class="glyphicon glyphicon-arrow-up" aria-hidden="true" title="scale up"></span>' +
+                  '</a> '
+    }
+    if (x > 0) {
+        result += '<a href="#" onclick="scale(\'' + row.id + '\', ' + (x-1) + ')">' +
+                  '<span class="glyphicon glyphicon-arrow-down" aria-hidden="true" title="scale up"></span>' +
+                  '</a>';
+    }
+    return result;
 }
 
 function floatFormatter(x) {
@@ -30,8 +36,52 @@ function byteFormatter(x) {
 	return d3.format(".2s")(x);
 }
 
-function serviceRestart(x) {
-    console.log("RESTART : " + x);
+function diskFormatter(x) {
+    console.log(x);
+    return x;
+}
+
+function actionFormatter(id) {
+	return '<a href="services/' + id + '/logs">' +
+           '<span class="glyphicon glyphicon-list-alt" aria-hidden="true" title="show logs"></span>' +
+           // '</a> ' +
+           // '<a href="#" onclick="serviceReload(\'' + id + '\')">' +
+           // '<span class="glyphicon glyphicon-import" aria-hidden="true" title="download latests"></span>' +
+           '</a> ' +
+           '<a href="#" onclick="serviceRestart(\'' + id + '\')">' +
+           '<span class="glyphicon glyphicon-refresh" aria-hidden="true" title="restart service"></span>' +
+           // '</a> ' +
+           // '<a href="#" onclick="serviceDestroy(\'' + id + '\')">' +
+           // '<span class="glyphicon glyphicon-trash" aria-hidden="true" title="destroy service"></span>' +
+           '</a>';
+}
+
+function scale(id, replicas) {
+    var row = $("#services").bootstrapTable('getRowByUniqueId', id);
+
+    $.ajax({
+        type: "PUT",
+        url: "api/services/" + row.id + "/scale/" + replicas,
+        success: function(data) {
+            row['replicas'] = replicas;
+            $("#services").bootstrapTable('updateByUniqueId', {id: id, row: row});
+        }
+    });
+}
+
+function serviceRestart(id) {
+    var row = $("#services").bootstrapTable('getRowByUniqueId', id),
+        old = row['replicas'];
+
+    $.ajax({
+        type: "PUT",
+        url: "api/services/" + row.id + "/scale/" + 0,
+        success: function(data) {
+            row['replicas'] = 0;
+            $("#services").bootstrapTable('updateByUniqueId', {id: id, row: row});
+            setTimeout(scale, 2 * 1000, id, old);
+        }
+    });
 }
 
 function serviceReload(x) {
@@ -46,20 +96,9 @@ function serviceDestroy(x) {
     console.log("DESTROY : " + x);
 }
 
-
-function actionFormatter(x) {
-	return '<a href="services/' + x + '/logs" target="logs">' +
-           '<span class="glyphicon glyphicon-list-alt" aria-hidden="true" title="show logs"></span>' +
-           // '</a> ' +
-           // '<a href="#" onclick="serviceReload(' + x + ')">' +
-           // '<span class="glyphicon glyphicon-import" aria-hidden="true" title="download latests"></span>' +
-           // '</a> ' +
-           // '<a href="#" onclick="serviceRestart(' + x + ')">' +
-           // '<span class="glyphicon glyphicon-refresh" aria-hidden="true" title="restart service"></span>' +
-           // '</a> ' +
-           // '<a href="#" onclick="serviceDestroy(' + x + ')">' +
-           // '<span class="glyphicon glyphicon-trash" aria-hidden="true" title="destroy service"></span>' +
-           '</a>';
+function refresh() {
+    $("#services").bootstrapTable('refresh');
+    setTimeout(refresh, 60 * 1000);
 }
 
-$(window).load(loadData);
+setTimeout(refresh,  60 * 1000);
