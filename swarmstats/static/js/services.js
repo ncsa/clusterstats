@@ -13,15 +13,23 @@ function organize(res) {
     return rows;
 }
 
+function replicaSorter(a, b) {
+    if (a.running > b.running) return +1;
+    if (b.running > a.running) return -1;
+    if (a.requested > b.requested) return +1;
+    if (b.requested > a.requested) return -1;
+    return 0;
+}
+
 function replicaFormatter(x, row) {
-    result = x + ' ';
-    if (x < 10) {
-        result += '<a href="#" onclick="scale(\'' + row.id + '\', ' + (x+1) + ')">' +
+    result = x.running + '/' + x.requested + ' ';
+    if (x.requested < 10) {
+        result += '<a href="#" onclick="scale(\'' + row.id + '\', ' + (x.requested+1) + ')">' +
                   '<span class="glyphicon glyphicon-arrow-up" aria-hidden="true" title="scale up"></span>' +
                   '</a> '
     }
-    if (x > 0) {
-        result += '<a href="#" onclick="scale(\'' + row.id + '\', ' + (x-1) + ')">' +
+    if (x.requested > 0) {
+        result += '<a href="#" onclick="scale(\'' + row.id + '\', ' + (x.requested-1) + ')">' +
                   '<span class="glyphicon glyphicon-arrow-down" aria-hidden="true" title="scale up"></span>' +
                   '</a>';
     }
@@ -63,7 +71,7 @@ function scale(id, replicas) {
         type: "PUT",
         url: "api/services/" + row.id + "/scale/" + replicas,
         success: function(data) {
-            row['replicas'] = replicas;
+            row['replicas']['requested'] = replicas;
             $("#services").bootstrapTable('updateByUniqueId', {id: id, row: row});
         }
     });
@@ -74,13 +82,11 @@ function serviceRestart(id) {
         old = row['replicas'];
 
     $.ajax({
-        type: "PUT",
-        url: "api/services/" + row.id + "/scale/" + 0,
+        type: "POST",
+        url: "api/services/" + row.id + "/restart",
         success: function(data) {
-            row['replicas'] = 0;
-            $("#services").bootstrapTable('updateByUniqueId', {id: id, row: row});
-            setTimeout(scale, 2 * 1000, id, old);
         }
+
     });
 }
 

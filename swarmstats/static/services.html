@@ -15,7 +15,7 @@
   <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
     <div class="container-fluid">
       <div class="navbar-header">
-        <a class="navbar-brand" href="dashboard.html">Swarm Dashboard</a>
+        <a class="navbar-brand" href="dashboard">Swarm Dashboard</a>
       </div>
       <div class="navbar-collapse collapse">
         <ul class="nav navbar-nav navbar-left">
@@ -38,13 +38,13 @@
                    data-toggle="table"
                    data-search="true"
                    data-unique-id="id"
-                   data-url="api/services"
+                   data-url="api/services?full=1"
                    data-response-handler="organize"
                    data-show-refresh="true">
               <thead>
                 <tr>
                   <th data-field="name" data-sortable="true">Name</th>
-                  <th data-field="replicas" data-formatter="replicaFormatter" data-sortable="true">Replicas</th>
+                  <th data-field="replicas" data-formatter="replicaFormatter" data-sorter="replicaSorter" data-sortable="true">Replicas</th>
                   <th data-field="cores" data-formatter="floatFormatter" data-sortable="true">Cores</th>
                   <th data-field="memory" data-formatter="byteFormatter" data-sortable="true">Memory</th>
                   <th data-field="disk" data-formatter="byteFormatter" data-sortable="true">Disk</th>

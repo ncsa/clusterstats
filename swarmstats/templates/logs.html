@@ -27,7 +27,7 @@
 
   <div class="container-fluid">
 
-    <h3>Service Logs : {{ service }}</h3>
+    <h3>Service Logs : {{ service_name }}</h3>
 
     <div class="row">
       <div class="col-sm-12">
@@ -41,10 +41,17 @@
                   <option value="20" selected>Last 20 lines</option>
                   <option value="50">Last 50 lines</option>
                   <option value="100">Last 100 lines</option>
+                  <option value="0">Full log</option>
                 </select>
               </label>
-              <label>
-                <a href="#" onclick="showLog();">Full Log</a>
+              <label class="pull-left" style="margin-right: 10px;">
+                Container:
+                <select id="log-container">
+                  <option value="all" selected>All Containers</option>
+                  {% for c in containers %}
+                  <option value="{{ c }}">{{ c }}</option>
+                  {% endfor %}
+                </select>
               </label>
             </small>
           </div>
@@ -71,15 +78,26 @@
   <script type="text/javascript" src="{{ url_for('html.static', filename='lib/js/bootstrap.min.js') }}"></script>
   <script type="text/javascript">
     function showLogs() {
-      var url = "{{ url_for('api.api_services_logs', service=service) }}?lines=" + $("#log-lines").val();
-
-      $.get(url, function(data) {
-        $('#logs').text(data);
-        setTimeout(showLogs, 30 * 1000);
-      });
+      if ($("#log-container").val() == "all") {
+        var url = "{{ url_for('api.api_services_logs', service=service_id) }}?lines=" + $("#log-lines").val();
+        console.log(url);
+        $.get(url, function(data) {
+          $('#logs').text(data);
+          setTimeout(showLogs, 30 * 1000);
+        });
+      } else {
+        var url = "{{ url_for('api.api_containers_logs', container='--') }}?lines=" + $("#log-lines").val();
+        url = url.replace("--", $("#log-container").val());
+        console.log(url);
+        $.get(url, function(data) {
+          $('#logs').text(data);
+          setTimeout(showLogs, 30 * 1000);
+        });
+      }
     }
 
-    $("log-lines").change(showLogs);
+    $("#log-lines").change(showLogs);
+    $("#log-container").change(showLogs);
     $(window).load(showLogs);
   </script>
 </body>

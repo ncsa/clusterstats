@@ -4,7 +4,6 @@ MAINTAINER Rob Kooper <kooper@illinois.edu>
 ARG BUILD_VERSION
 
 ENV LOGGER="" \
-    NODE="" \
     SWARMS="" \
     DATADIR="/data" \
     BUILD=${BUILD_VERSION:-unknown}

@@ -1,5 +1,4 @@
 // Time Period
-var period = "4hour";
 var showmax = true;
 
 // Charts
@@ -32,10 +31,12 @@ var coresTotalGroup, coresUsedGroup, memoryTotalGroup, memoryUsedGroup,
 
 var dateToString = function(date) {
     var d = new Date(date);
-    if (period == "4hour") {
-        return d3.time.format("%X")(d);
-    } else {
-        return d;
+    switch ($("#period").val()) {
+    	case "4hour":
+    	case "24hour":
+    	    return d3.time.format("%H:%M")(d);
+		default:
+        	return d3.time.format("%x")(d);
     }
 };
 
@@ -49,8 +50,8 @@ function toggleMax() {
 
 function loadData() {
     queue()
-        .defer(d3.json, "api/swarm/stats/" + period)
-        .defer(d3.json, "api/services")
+        .defer(d3.json, "api/swarm/stats/" + $("#period").val())
+        .defer(d3.json, "api/services?full=1")
         .await(drawGraphs);
 }
 
@@ -83,7 +84,7 @@ function drawGraphs(error, swarmStats, services) {
     var servicesNameDim = ndxServices.dimension(function(d) { return d["name"]; });
     var servicesCoreGroup = servicesNameDim.group().reduceSum(function(d) { return d["cores"]; }),
         servicesMemoryGroup = servicesNameDim.group().reduceSum(function(d) { return d["memory"]; }),
-        servicesReplicasGroup = servicesNameDim.group().reduceSum(function(d) { return d["replicas"]; }),
+        servicesReplicasGroup = servicesNameDim.group().reduceSum(function(d) { return d["replicas"]["running"]; }),
         servicesStorageDataGroup = servicesNameDim.group().reduceSum(function(d) { return d["disk"]["data"]; });
 
     // Define values (to be used in charts)
@@ -94,17 +95,17 @@ function drawGraphs(error, swarmStats, services) {
 
     // number charts
 	nodesTotalChart
-		.formatNumber(d3.format("d"))
+		.formatNumber(d3.format(".0f"))
 		.valueAccessor(function(d) { return d.nodes; })
 		.group(swarmDateDim);
 
 	servicesTotalChart
-		.formatNumber(d3.format("d"))
+		.formatNumber(d3.format(".0f"))
 		.valueAccessor(function(d) { return d.services; })
 		.group(swarmDateDim);
 
 	containersTotalChart
-		.formatNumber(d3.format("d"))
+		.formatNumber(d3.format(".0f"))
 		.valueAccessor(function(d) { return d.containers; })
 		.group(swarmDateDim);
 
@@ -158,6 +159,7 @@ function drawGraphs(error, swarmStats, services) {
         .width(parseInt(d3.select('#service-replicas-stage').style('width'), 10))
         .height(130)
         .ordering(function(d) { return -d.value; })
+		.title(function(d) { return d.key + ': ' + d.value; })
         .cap(4)
         .othersGrouper(false)
         .group(servicesReplicasGroup)
@@ -170,6 +172,7 @@ function drawGraphs(error, swarmStats, services) {
         .width(parseInt(d3.select('#service-core-stage').style('width'), 10))
         .height(130)
         .ordering(function(d) { return -d.value; })
+		.title(function(d) { return d.key + ': ' + d3.format(".2f")(d.value); })
         .cap(4)
         .othersGrouper(false)
         .group(servicesCoreGroup)
@@ -182,6 +185,7 @@ function drawGraphs(error, swarmStats, services) {
         .width(parseInt(d3.select('#service-memory-stage').style('width'), 10))
         .height(130)
         .ordering(function(d) { return -d.value; })
+		.title(function(d) { return d.key + ': ' + d3.format(".2s")(d.value); })
         .cap(4)
         .othersGrouper(false)
         .group(servicesMemoryGroup)
@@ -194,6 +198,7 @@ function drawGraphs(error, swarmStats, services) {
         .width(parseInt(d3.select('#service-disk-data-stage').style('width'), 10))
         .height(130)
         .ordering(function(d) { return -d.value; })
+		.title(function(d) { return d.key + ': ' + d3.format(".2s")(d.value); })
         .cap(4)
         .othersGrouper(false)
         .group(servicesStorageDataGroup)
@@ -258,9 +263,9 @@ function drawGraphs(error, swarmStats, services) {
         .group(nodesTotalGroup)
         .yAxisPadding(100)
 		.transitionDuration(10)
-        // .keyAccessor(function(d) { return dateToString(d.key); })
         .valueAccessor(function(d) { return d.value; })
 		.x(d3.time.scale().domain([minDate, maxDate]))
+        .title(function(d){ return dateToString(d.key) + " : " + d3.format(".1f")(d.value); })
         .yAxisPadding('5%')
 		.elasticY(true)
         .brushOn(false)
@@ -274,9 +279,9 @@ function drawGraphs(error, swarmStats, services) {
         .group(servicesTotalGroup)
         .yAxisPadding(100)
 		.transitionDuration(10)
-        // .keyAccessor(function(d) { return dateToString(d.key); })
         .valueAccessor(function(d) { return d.value; })
 		.x(d3.time.scale().domain([minDate, maxDate]))
+        .title(function(d){ return dateToString(d.key) + " : " + d3.format(".1f")(d.value); })
         .yAxisPadding('5%')
 		.elasticY(true)
         .brushOn(false)
@@ -290,9 +295,9 @@ function drawGraphs(error, swarmStats, services) {
         .group(containersTotalGroup)
         .yAxisPadding(100)
         .transitionDuration(10)
-        // .keyAccessor(function(d) { return dateToString(d.key); })
         .valueAccessor(function(d) { return d.value; })
 		.x(d3.time.scale().domain([minDate, maxDate]))
+        .title(function(d){ return dateToString(d.key) + " : " + d3.format(".1f")(d.value); })
         .yAxisPadding('5%')
 		.elasticY(true)
         .brushOn(false)
@@ -353,4 +358,5 @@ function drawSubGraphs() {
 
 }
 
+$("#period").change(loadData);
 $(window).load(loadData);
