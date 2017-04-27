@@ -501,10 +501,10 @@ def api_services_scale(service, count):
                                       version=s['Version']['Index'],
                                       task_template=task_template,
                                       name=spec['Name'],
-                                      labels=spec['Labels'],
+                                      labels=spec.get('Labels', None),
                                       mode=mode,
                                       update_config=update_config,
-                                      networks=spec['Networks'],
+                                      networks=spec.get('Networks', None),
                                       endpoint_spec=endpoint_spec)
 
                 v['replicas']['requested'] = int(count)
