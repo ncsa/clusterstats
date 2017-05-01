@@ -1,0 +1,299 @@
+---
+swagger: '2.0'
+
+#####################################################################
+# API Information                                                   #
+#####################################################################
+info:
+  version: "1"
+  title: BrownDog SWARM API
+  description: This is the endpoint to control the docker swarm
+  contact:
+    name: BrownDog Team
+    url: https://browndog.ncsa.illinois.edu/
+
+#####################################################################
+# Host, Base Path, Schemes and Content Types                        #
+#####################################################################
+host: 141.142.211.141:9999
+basePath: /api
+schemes:
+  - http
+produces:
+  - application/json
+consumes:
+  - application/json
+
+#####################################################################
+# Tags                                                              #
+#####################################################################
+tags:
+  - name: swarm
+    description: Information about the docker swarm
+  - name: nodes
+    description: Information about the nodes in the swarm
+  - name: services
+    description: Information about the services in the swarm
+  - name: containers
+    description: Information about the containers in the swarm
+
+#####################################################################
+# Security                                                          #
+#####################################################################
+securityDefinitions:
+  login:
+    type: basic
+security:
+  - login: []
+
+#####################################################################
+# Parameters                                                        #
+#####################################################################
+
+#####################################################################
+# Paths                                                             #
+#####################################################################
+paths:
+
+  ###################################################################
+  # swarm                                                           #
+  ###################################################################
+  /swarm:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: full
+          in: query
+          type: boolean
+          required: false
+      tags:
+        - swarm
+      summary: Get swarm information
+      description:
+        Returns information about the swarm. If full is set it will
+        return all information of the swarm (such as nodes, services
+        and containers), otherwise it will return the count of each
+        of these elements.
+
+  /swarm/stats:
+    get:
+      responses:
+        200:
+          description: OK
+      tags:
+        - swarm
+      summary: Get list of all periods for stats
+      description:
+        Returns a list of all periods that the stats are collected
+        for.
+
+  /swarm/stats/{period}:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: period
+          in: path
+          type: string
+          required: true
+      tags:
+        - swarm
+      summary: Returns statistics collected over the period.
+      description:
+        Returns statistics collected over the period of time.
+
+  ###################################################################
+  # nodes                                                           #
+  ###################################################################
+  /nodes:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: full
+          in: query
+          type: boolean
+          required: false
+      tags:
+        - nodes
+      summary: Get list of all nodes
+      description:
+        Returns a list of all nodes known. If full is set it will
+        return all information of all nodes, otherwise it will
+        just return the id and name of the node. Some elements
+        will only be returned when logged in as admin.
+
+  /nodes/{node}:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: node
+          in: path
+          type: string
+          required: true
+      tags:
+        - nodes
+      summary: Get information about a specific node
+      description:
+        Returns all information about a specific node. Some
+        elements will only be returned when logged in as admin.
+
+  ###################################################################
+  # services                                                        #
+  ###################################################################
+  /services:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: full
+          in: query
+          type: boolean
+          required: false
+      tags:
+        - services
+      summary: Get list of all services
+      description:
+        Returns a list of all services known. If full is set it will
+        return all information of all services, otherwise it will
+        just return the id and name of the service. Some elements
+        will only be returned when logged in as admin.
+
+  /services/{service}:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: service
+          in: path
+          type: string
+          required: true
+      tags:
+        - services
+      summary: Get information about a specific service
+      description:
+        Returns all information about a specific service. Some
+        elements will only be returned when logged in as admin.
+
+  /services/{service}/logs:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: service
+          in: path
+          type: string
+          required: true
+      tags:
+        - services
+      summary: Get log files for a specific service
+      description:
+        Returns all logs for a specific service. This will merge
+        the logfiles for different containers by time.
+
+  /services/{service}/restart:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: service
+          in: path
+          type: string
+          required: true
+      tags:
+        - services
+      summary: Restart the service
+      description:
+        Restarts the service. This will stop all containers, wait
+        for 30 seconds, and start the same number of containers.
+
+  /services/{service}/scale/{count}:
+    put:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: service
+          in: path
+          type: string
+          required: true
+        - name: count
+          in: path
+          type: integer
+          required: true
+      tags:
+        - services
+      summary: Scales the service to the given number of replicas.
+      description:
+        This will start or stop containers such that the number of
+        requested replicas matches the given number.
+
+  ###################################################################
+  # containers                                                      #
+  ###################################################################
+  /containers:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: full
+          in: query
+          type: boolean
+          required: false
+      tags:
+        - containers
+      summary: Get list of all container
+      description:
+        Returns a list of all containers known. If full is set it
+        will return all information of all containers, otherwise it
+        will just return the id and name of the container. Some
+        elements will only be returned when logged in as admin.
+
+  /containers/{container}:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: container
+          in: path
+          type: string
+          required: true
+      tags:
+        - containers
+      summary: Get information about a specific container
+      description:
+        Returns all information about a specific container. Some
+        elements will only be returned when logged in as admin.
+
+  /containers/{container}/logs:
+    get:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: container
+          in: path
+          type: string
+          required: true
+      tags:
+        - containers
+      summary: Get log files for a specific container
+      description:
+        Returns all logs for a specific container.
+
+
+#####################################################################
+#                                 Definitions                       #
+#####################################################################
