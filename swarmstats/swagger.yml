@@ -63,6 +63,8 @@ paths:
       responses:
         200:
           description: OK
+          schema:
+            $ref: '#/definitions/Swarm'
       parameters:
         - name: full
           in: query
@@ -132,6 +134,8 @@ paths:
       responses:
         200:
           description: OK
+          schema:
+            $ref: '#/definitions/Node'
       parameters:
         - name: node
           in: path
@@ -171,6 +175,8 @@ paths:
       responses:
         200:
           description: OK
+          schema:
+            $ref: '#/definitions/Service'
       parameters:
         - name: service
           in: path
@@ -265,6 +271,8 @@ paths:
       responses:
         200:
           description: OK
+          schema:
+            $ref: '#/definitions/Container'
       parameters:
         - name: container
           in: path
@@ -297,3 +305,151 @@ paths:
 #####################################################################
 #                                 Definitions                       #
 #####################################################################
+definitions:
+  Swarm:
+    type: object
+    properties:
+      nodes:
+        type: integer
+      services:
+        type: integer
+      containers:
+        type: integer
+      cores:
+        type: object
+        properties:
+          total:
+            type: number
+          used:
+            type: number
+      memory:
+        type: object
+        properties:
+          total:
+            type: number
+          used:
+            type: number
+      disk:
+        type: object
+        properties:
+          available:
+            type: integer
+            format: int64
+          data:
+            type: integer
+            format: int64
+          used:
+            type: integer
+            format: int64
+      managers:
+        type: array
+        items:
+          type: string
+  Node:
+    type: object
+    properties:
+      name:
+        type: string
+      status:
+        type: string
+      updated:
+        type: string
+      url:
+        type: string
+      services:
+        type: array
+        items:
+          type: string
+      containers:
+        type: array
+        items:
+          type: string
+      cores:
+        type: object
+        properties:
+          total:
+            type: number
+          used:
+            type: number
+      memory:
+        type: object
+        properties:
+          total:
+            type: number
+          used:
+            type: number
+      disk:
+        type: object
+        properties:
+          available:
+            type: integer
+            format: int64
+          data:
+            type: integer
+            format: int64
+          used:
+            type: integer
+            format: int64
+  Service:
+    type: object
+    properties:
+      containers:
+        type: array
+        items:
+          type: string
+      cores:
+        type: number
+      memory:
+        type: number
+      disk:
+        type: object
+        properties:
+          data:
+            type: integer
+            format: int64
+          used:
+            type: integer
+            format: int64
+      nodes:
+        type: array
+        items:
+          type: string
+      replicas:
+        type: object
+        properties:
+          replicas:
+            type: integer
+            format: int32
+          running:
+            type: integer
+            format: int32
+  Container:
+    type: object
+    properties:
+      name:
+        type: string
+      service:
+        type: string
+      node:
+        type: string
+      state:
+        type: string
+      status:
+        type: string
+      cores:
+        type: number
+      memory:
+        type: number
+      disk:
+        type: object
+        properties:
+          data:
+            type: integer
+            format: int64
+          used:
+            type: integer
+            format: int64
+      env:
+        type: array
+        items:
+          type: string
