@@ -45,7 +45,6 @@ function byteFormatter(x) {
 }
 
 function diskFormatter(x) {
-    console.log(x);
     return x;
 }
 
@@ -67,26 +66,34 @@ function actionFormatter(id) {
 function scale(id, replicas) {
     var row = $("#services").bootstrapTable('getRowByUniqueId', id);
 
+    $.notify("Scaling " + row['name'], "info");
     $.ajax({
         type: "PUT",
         url: "api/services/" + row.id + "/scale/" + replicas,
         success: function(data) {
             row['replicas']['requested'] = replicas;
             $("#services").bootstrapTable('updateByUniqueId', {id: id, row: row});
+            $.notify(row['name'] + " scaled to " + replicas, "success");
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            $.notify(textStatus + " [" + row['name'] + "] : " + errorThrown, "error");
         }
     });
 }
 
 function serviceRestart(id) {
-    var row = $("#services").bootstrapTable('getRowByUniqueId', id),
-        old = row['replicas'];
+    var row = $("#services").bootstrapTable('getRowByUniqueId', id);
 
+    $.notify("Restarting " + row['name'] + " (takes 30 seconds)", "info");
     $.ajax({
         type: "POST",
         url: "api/services/" + row.id + "/restart",
         success: function(data) {
+            $.notify(row['name'] + " restarted", "success");
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            $.notify(textStatus + " [" + row['name'] + "] : " + errorThrown, "error");
         }
-
     });
 }
 
