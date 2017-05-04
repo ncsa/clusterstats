@@ -29,17 +29,6 @@ var swarmDateDim;
 var coresTotalGroup, coresUsedGroup, memoryTotalGroup, memoryUsedGroup,
     diskTotalGroup, diskUsedGroup, diskDataGroup;
 
-var dateToString = function(date) {
-    var d = new Date(date);
-    switch ($("#period").val()) {
-    	case "4hour":
-    	case "24hour":
-    	    return d3.time.format("%H:%M")(d);
-		default:
-        	return d3.time.format("%x")(d);
-    }
-};
-
 function toggleMax() {
     showmax = document.getElementById('chkShowMax').checked;
     drawSubGraphs();
@@ -214,7 +203,7 @@ function drawGraphs(error, swarmStats, services) {
 		.margins({top: 10, right: 50, bottom: 30, left: 50})
         .dimension(swarmDateDim)
 		.transitionDuration(500)
-        .keyAccessor(function(d) { return dateToString(d.key); })
+        .keyAccessor(function(d) { return d3.time.format("%x %X")(d.key); })
         .valueAccessor(function(d) { return d.value; })
 		.x(d3.time.scale().domain([minDate, maxDate]))
         .yAxisPadding('5%')
@@ -230,7 +219,7 @@ function drawGraphs(error, swarmStats, services) {
 		.dimension(swarmDateDim)
         .yAxisPadding(100)
 		.transitionDuration(10)
-        .keyAccessor(function(d) { return dateToString(d.key); })
+        .keyAccessor(function(d) { return d3.time.format("%x %X")(d.key); })
         .valueAccessor(function(d) { return d3.format(".2s")(d.value); })
 		.x(d3.time.scale().domain([minDate, maxDate]))
         .yAxisPadding('5%')
@@ -246,7 +235,7 @@ function drawGraphs(error, swarmStats, services) {
 		.dimension(swarmDateDim)
         .yAxisPadding(100)
 		.transitionDuration(10)
-        .keyAccessor(function(d) { return dateToString(d.key); })
+        .keyAccessor(function(d) { return d3.time.format("%x %X")(d.key); })
         .valueAccessor(function(d) { return d3.format(".2s")(d.value); })
 		.x(d3.time.scale().domain([minDate, maxDate]))
         .yAxisPadding('5%')
@@ -265,7 +254,7 @@ function drawGraphs(error, swarmStats, services) {
 		.transitionDuration(10)
         .valueAccessor(function(d) { return d.value; })
 		.x(d3.time.scale().domain([minDate, maxDate]))
-        .title(function(d){ return dateToString(d.key) + " : " + d3.format(".1f")(d.value); })
+        .title(function(d){ return d3.time.format("%x %X")(d.key) + " : " + d3.format(".1f")(d.value); })
         .yAxisPadding('5%')
 		.elasticY(true)
         .brushOn(false)
@@ -281,7 +270,7 @@ function drawGraphs(error, swarmStats, services) {
 		.transitionDuration(10)
         .valueAccessor(function(d) { return d.value; })
 		.x(d3.time.scale().domain([minDate, maxDate]))
-        .title(function(d){ return dateToString(d.key) + " : " + d3.format(".1f")(d.value); })
+        .title(function(d){ return d3.time.format("%x %X")(d.key) + " : " + d3.format(".1f")(d.value); })
         .yAxisPadding('5%')
 		.elasticY(true)
         .brushOn(false)
@@ -297,7 +286,7 @@ function drawGraphs(error, swarmStats, services) {
         .transitionDuration(10)
         .valueAccessor(function(d) { return d.value; })
 		.x(d3.time.scale().domain([minDate, maxDate]))
-        .title(function(d){ return dateToString(d.key) + " : " + d3.format(".1f")(d.value); })
+        .title(function(d){ return d3.time.format("%x %X")(d.key) + " : " + d3.format(".1f")(d.value); })
         .yAxisPadding('5%')
 		.elasticY(true)
         .brushOn(false)
