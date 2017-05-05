@@ -18,3 +18,8 @@ def html_page(page):
 def html_services_logs(service):
     (k, v) = utils.find_item(swarm.instance.services, service)
     return flask.render_template('logs.html', service_id=k, service_name=v['name'], containers=v['containers'])
+
+
+@blueprint.route('/swagger')
+def html_swagger():
+    return blueprint.send_static_file('swagger.yml')

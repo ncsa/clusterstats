@@ -169,6 +169,26 @@ paths:
         return all information of all services, otherwise it will
         just return the id and name of the service. Some elements
         will only be returned when logged in as admin.
+    post:
+      consumes:
+        - application/json
+      responses:
+        200:
+          description: OK
+        400:
+          description: Service could not be created.
+      parameters:
+        - in: body
+          name: body
+          description: Service object
+          required: true
+          schema:
+            $ref: '#/definitions/ServiceCreate'
+      tags:
+        - services
+      summary: Create a new service
+      description:
+        Create a new service. Only admins can do this.
 
   /services/{service}:
     get:
@@ -243,6 +263,26 @@ paths:
       description:
         This will start or stop containers such that the number of
         requested replicas matches the given number.
+
+  /services/{service}/update:
+    post:
+      responses:
+        200:
+          description: OK
+      parameters:
+        - name: service
+          in: path
+          type: string
+          required: true
+      tags:
+        - services
+      summary: Forces the service to update itself.
+      description:
+        This will force the service to update itself. This will
+        check to make sure the tag of the image is still the right
+        image, if not it will download the image again. This can
+        be used to force the service to download the latest tag
+        again.
 
   ###################################################################
   # containers                                                      #
@@ -393,6 +433,14 @@ definitions:
   Service:
     type: object
     properties:
+      name:
+        type: string
+      image:
+        type: string
+      env:
+        type: array
+        items:
+          type: string
       containers:
         type: array
         items:
@@ -423,6 +471,17 @@ definitions:
           running:
             type: integer
             format: int32
+  ServiceCreate:
+    type: object
+    properties:
+      name:
+        type: string
+      image:
+        type: string
+      env:
+        type: array
+        items:
+          type: string
   Container:
     type: object
     properties:

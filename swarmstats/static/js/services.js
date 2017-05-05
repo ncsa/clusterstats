@@ -51,16 +51,16 @@ function diskFormatter(x) {
 function actionFormatter(id) {
 	return '<a href="services/' + id + '/logs">' +
            '<span class="glyphicon glyphicon-list-alt" aria-hidden="true" title="show logs"></span>' +
-           // '</a> ' +
-           // '<a href="#" onclick="serviceReload(\'' + id + '\')">' +
-           // '<span class="glyphicon glyphicon-import" aria-hidden="true" title="download latests"></span>' +
            '</a> ' +
            '<a href="#" onclick="serviceRestart(\'' + id + '\')">' +
            '<span class="glyphicon glyphicon-refresh" aria-hidden="true" title="restart service"></span>' +
+           '</a> ' +
+           '<a href="#" onclick="serviceReload(\'' + id + '\')">' +
+           '<span class="glyphicon glyphicon-import" aria-hidden="true" title="download latests"></span>' +
            // '</a> ' +
            // '<a href="#" onclick="serviceDestroy(\'' + id + '\')">' +
            // '<span class="glyphicon glyphicon-trash" aria-hidden="true" title="destroy service"></span>' +
-           '</a>';
+    '</a>';
 }
 
 function scale(id, replicas) {
@@ -97,8 +97,20 @@ function serviceRestart(id) {
     });
 }
 
-function serviceReload(x) {
-    console.log("RELOAD  : " + x);
+function serviceReload(id) {
+    var row = $("#services").bootstrapTable('getRowByUniqueId', id);
+
+    $.notify("Downloading latest image for " + row['name'], "info");
+    $.ajax({
+        type: "POST",
+        url: "api/services/" + row.id + "/update",
+        success: function(data) {
+            $.notify(row['name'] + " downloaded", "success");
+        },
+        error: function(jqXHR, textStatus, errorThrown) {
+            $.notify(textStatus + " [" + row['name'] + "] : " + errorThrown, "error");
+        }
+    });
 }
 
 function serviceLogs(x) {

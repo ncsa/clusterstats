@@ -107,71 +107,47 @@ class Swarm(object):
         thread.start()
         self.logger.info("Start computing stats")
 
-    def log_service(self, service, lines=10):
-        (_, s) = utils.find_item(self.services, service)
-        if not s:
-            return None
+    def service_create(self, **kwargs):
+        client = docker.DockerClient(base_url=self.swarm_url, version='auto')
+        try:
+            service = client.services.create(**kwargs)
+            if service.short_id not in self.services:
+                self.services[service.short_id] = {
+                    'name': kwargs.get("name", None),
+                    'replicas': {'requested': 0, 'running': 0},
+                    'containers': list(),
+                    'image': kwargs.get("image", None),
+                    'env': kwargs.get("env", list()),
+                    'nodes': list(),
+                    'cores': 0,
+                    'memory': 0,
+                    'disk': {'used': 0, 'data': 0},
+                }
+            return True, service.short_id
+        except (docker.errors.APIError, AttributeError) as e:
+            self.logger.exception("Could not create service.")
+            return False, str(e)
 
-        all_logs = []
-        for c in s['containers']:
-            for line in self.log_container(c, lines, True).split("\n"):
-                pieces = line.split(maxsplit=1)
-                if len(pieces) == 2:
-                    all_logs.append({'time': pieces[0], 'container': c, 'log': pieces[1]})
-        sorted_logs = sorted(all_logs, key=lambda x: x['time'])
+    def service_update(self, service):
+        self._service_update(service, force=True)
 
-        if lines != 'all':
-            sorted_logs = sorted_logs[-lines:]
+    def service_scale(self, service, count):
+        self._service_update(service, count=count)
 
-        log = ""
-        for line in sorted_logs:
-            log += "%s | %s | %s\n" % (line['time'], line['container'], line['log'])
-        # for line in sorted_logs:
-        #     pieces = line.split(maxsplit=1)
-        #     if len(pieces) == 2:
-        #         log += pieces[1] + "\n"
-
-        return log
-
-    def log_container(self, container, lines=10, timestamps=False):
-        if lines == 'all':
-            lines = 100
-
-        (k, v) = utils.find_item(self.containers, container)
-        if not k:
-            return None
-
-        node = self.nodes[v['node']]
-        if 'url' in node:
-            result = ""
-            client = docker.APIClient(base_url=node['url'], version="auto", timeout=self.timeouts['docker'])
-            try:
-                log = client.logs(k, stdout=True, stderr=True, follow=False, timestamps=timestamps, tail=lines)
-                if inspect.isgenerator(log):
-                    for row in log:
-                        self.logger.info(type(row))
-                        self.logger.info(row)
-                        result += row.decode('utf-8')
-                else:
-                    result = log.decode('utf-8')
-            except docker.errors.NotFound:
-                self.logger.info("Trying to get log from container '%s' that no longer exists." % container)
-                result = "Countainer %s is no longer running." % container
-        else:
-            result = "Could not connect to docker host, no logs returned for %s." % container
-        return result
-
-    def services_scale(self, service, count):
+    def _service_update(self, service, count=None, force=False):
         (k, v) = utils.find_item(self.services, service)
         if k:
-            client = docker.APIClient(self.swarm_url)
+            client = docker.APIClient(self.swarm_url, version='auto')
             s = client.inspect_service(k)
             if s and 'Spec' in s and 'TaskTemplate' in s['Spec']:
                 spec = s['Spec']
                 task = spec['TaskTemplate']
 
                 config = task['ContainerSpec']
-                container_spec = docker.types.ContainerSpec(config['Image'],
+                image = config['Image']
+                if force:
+                    image = re.sub(r'@sha256.*', '', image)
+                container_spec = docker.types.ContainerSpec(image,
                                                             command=config.get('Command', None),
                                                             args=config.get('Args', None),
                                                             hostname=config.get('Hostname', None),
@@ -217,17 +193,23 @@ class Swarm(object):
                 else:
                     log_driver = None
 
+                force_update = task.get('ForceUpdate', 0)
+                if force:
+                    force_update += 1
                 task_template = docker.types.TaskTemplate(container_spec,
                                                           resources=resources,
                                                           restart_policy=restart_policy,
                                                           placement=task.get('Placement', None),
                                                           log_driver=log_driver,
-                                                          force_update=task.get('ForceUpdate', 0))
+                                                          force_update=force_update)
 
-                mode = docker.types.ServiceMode("replicated", int(count))
-                # TODO bug in docker library, see https://github.com/docker/docker-py/issues/1572
-                if int(count) == 0:
-                    mode.get('replicated')['Replicas'] = 0
+                if count:
+                    mode = docker.types.ServiceMode("replicated", int(count))
+                    # TODO bug in docker library, see https://github.com/docker/docker-py/issues/1572
+                    if int(count) == 0:
+                        mode.get('replicated')['Replicas'] = 0
+                else:
+                    mode = docker.types.ServiceMode("replicated", utils.get_item(spec, 'Mode.Replicated.Replicas', 0))
 
                 if 'UpdateConfig' in spec:
                     config = spec['EndpointSpec']
@@ -246,22 +228,79 @@ class Swarm(object):
                 else:
                     endpoint_spec = None
 
-                client.update_service(k,
-                                      version=s['Version']['Index'],
-                                      task_template=task_template,
-                                      name=spec['Name'],
-                                      labels=spec.get('Labels', None),
-                                      mode=mode,
-                                      update_config=update_config,
-                                      networks=spec.get('Networks', None),
-                                      endpoint_spec=endpoint_spec)
+                if client.update_service(k,
+                                         version=s['Version']['Index'],
+                                         task_template=task_template,
+                                         name=spec['Name'],
+                                         labels=spec.get('Labels', None),
+                                         mode=mode,
+                                         update_config=update_config,
+                                         networks=spec.get('Networks', None),
+                                         endpoint_spec=endpoint_spec):
+                    if count:
+                        v['replicas']['requested'] = int(count)
+                    return True, 'OK'
+                else:
+                    return False, 'Could not update service %s.' % service
 
-                v['replicas']['requested'] = int(count)
-                return True, 'OK'
             else:
                 return False, 'service "%s" not found' % service
         else:
             return False, 'service "%s" not found' % service
+
+    def service_log(self, service, lines=10):
+        (_, s) = utils.find_item(self.services, service)
+        if not s:
+            return None
+
+        # TODO work with generator
+        all_logs = []
+        for c in s['containers']:
+            for line in self.log_container(c, lines, True).split("\n"):
+                pieces = line.split(maxsplit=1)
+                if len(pieces) == 2:
+                    all_logs.append({'time': pieces[0], 'container': c, 'log': pieces[1]})
+        sorted_logs = sorted(all_logs, key=lambda x: x['time'])
+
+        if lines != 'all':
+            sorted_logs = sorted_logs[-lines:]
+
+        log = ""
+        for line in sorted_logs:
+            log += "%s | %s | %s\n" % (line['time'], line['container'], line['log'])
+        # for line in sorted_logs:
+        #     pieces = line.split(maxsplit=1)
+        #     if len(pieces) == 2:
+        #         log += pieces[1] + "\n"
+
+        return log
+
+    def container_log(self, container, lines=10, timestamps=False):
+        if lines == 'all':
+            lines = 100
+
+        (k, v) = utils.find_item(self.containers, container)
+        if not k:
+            return None
+
+        node = self.nodes[v['node']]
+        if 'url' in node:
+            result = ""
+            client = docker.APIClient(base_url=node['url'], version="auto", timeout=self.timeouts['docker'])
+            try:
+                log = client.logs(k, stdout=True, stderr=True, follow=False, timestamps=timestamps, tail=lines)
+                if inspect.isgenerator(log):
+                    for row in log:
+                        # TODO work with generator
+                        result += row.decode('utf-8')
+                else:
+                    result = log.decode('utf-8')
+            except docker.errors.NotFound:
+                self.logger.info("Trying to get log from container '%s' that no longer exists." % container)
+                result = "Countainer %s is no longer running." % container
+        else:
+            result = "Could not connect to docker host, no logs returned for %s." % container
+        return result
 
     def _collect_services(self):
         """

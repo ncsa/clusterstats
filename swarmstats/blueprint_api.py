@@ -119,6 +119,20 @@ def api_services(service=None):
             return flask.jsonify(results)
 
 
+@blueprint.route('/services', methods=['POST'])
+@utils.requires_user("admin")
+def api_services_create():
+    data = flask.request.get_json(force=True)
+    if data:
+        (status, msg) = swarm.instance.service_create(**data)
+        if status:
+            return flask.Response('service created: %s image=%s id=%s' % (data['name'], data['image'], msg))
+        else:
+            return flask.Response('could not create service: %s' % msg, status=400)
+    else:
+        return flask.Response('invalid data posted, expected JSON', status=400)
+
+
 @blueprint.route('/services/<service>/logs')
 @utils.requires_user("admin", "viewer")
 def api_services_logs(service):
@@ -126,7 +140,7 @@ def api_services_logs(service):
     if lines == 0:
         lines = 'all'
     log = swarm.instance.service_log(service, lines=lines)
-    if log or log == '':
+    if log is not None:
         return flask.Response(log, mimetype='text/ascii')
     else:
         return flask.Response('No logs found for %s' % service, status=404)
@@ -146,14 +160,25 @@ def api_services_restart(service):
         return flask.Response('service "%s" not found' % service, status=404)
 
 
+@blueprint.route('/services/<service>/update', methods=['POST'])
+@utils.requires_user("admin")
+def api_services_update(service):
+    (k, _) = utils.find_item(swarm.instance.services, service)
+    if k:
+        swarm.instance.service_update(k)
+        return flask.Response('service %s restarted' % service)
+    else:
+        return flask.Response('service "%s" not found' % service, status=404)
+
+
 @blueprint.route('/services/<service>/scale/<count>', methods=['PUT'])
 @utils.requires_user("admin")
 def api_services_scale(service, count):
-    (status, msg) = swarm.instance.services_scale(service, count)
+    (status, msg) = swarm.instance.service_scale(service, count)
     if status:
         return flask.Response('', status=204)
     else:
-        return flask.Response(msg, status=404)
+        return flask.Response(msg, status=400)
 
 
 @blueprint.route('/services/<service>/stats', defaults={'period': None})
@@ -207,8 +232,8 @@ def api_containers_logs(container):
     lines = int(flask.request.args.get('lines', '20'))
     if lines == 0:
         lines = 'all'
-    log = swarm.instance.log_container(container, lines=lines)
-    if log or log == '':
+    log = swarm.instance.container_log(container, lines=lines)
+    if log is not None:
         return flask.Response(log, mimetype='text/ascii')
     else:
         return flask.Response('No logs found for %s' % container, status=404)
