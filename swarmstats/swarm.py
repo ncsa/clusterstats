@@ -256,7 +256,7 @@ class Swarm(object):
         # TODO work with generator
         all_logs = []
         for c in s['containers']:
-            for line in self.log_container(c, lines, True).split("\n"):
+            for line in self.container_log(c, lines, True).split("\n"):
                 pieces = line.split(maxsplit=1)
                 if len(pieces) == 2:
                     all_logs.append({'time': pieces[0], 'container': c, 'log': pieces[1]})
