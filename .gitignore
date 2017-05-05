@@ -2,3 +2,7 @@
 .env
 .DS_Store
 *.pyc
+Nebula-BROWNDOG-openrc
+swarmscale.conf
+swarm.conf.*
+
