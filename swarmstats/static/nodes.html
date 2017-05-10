@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Swarm Statistics Dashboard</title>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no' />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/bootstrap.min.css" />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/bootstrap-table.min.css" />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/keen-dashboards.css" />
+  <link rel="stylesheet" type="text/css" href="static/lib/css/dc.min.css">
+  <link rel="stylesheet" type="text/css" href="static/css/custom.css">
+</head>
+<body class="application">
+
+  <!-- menu bar -->
+  <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container-fluid">
+      <div class="navbar-header">
+        <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#swarm-navbar-collapse" aria-expanded="false">
+          <span class="sr-only">Toggle navigation</span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+          <span class="icon-bar"></span>
+        </button>
+        <a class="navbar-brand" href="#">Swarm Dashboard</a>
+      </div>
+      <div class="collapse navbar-collapse" id="swarm-navbar-collapse">
+        <ul class="nav navbar-nav">
+          <li><a href="dashboard">Dashboard</a></li>
+          <li class="active"><a href="nodes">Nodes</a></li>
+          <li><a href="services">Services</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="container-fluid">
+
+    <h3>Nodes</h3>
+
+    <div class="row">
+      <div class="col-sm-12">
+        <div class="chart-wrapper">
+          <div class="chart-stage">
+            <table class="table table-striped" id="nodes"
+                   data-toggle="table"
+                   data-search="true"
+                   data-unique-id="id"
+                   data-url="api/nodes?full=1"
+                   data-response-handler="organize"
+                   data-show-refresh="true"
+                   data-sort-name="name"
+                   data-sort-order="asc">
+              <thead>
+                <tr>
+                  <th data-field="name" data-sortable="true">Name</th>
+                  <th data-field="services" data-formatter="numberFormatter" data-sortable="true">Services</th>
+                  <th data-field="containers" data-formatter="numberFormatter" data-sortable="true">Containers</th>
+                  <th data-field="cores" data-formatter="coresFormatter" data-sorter="percentSorter" data-sortable="true">Cores</th>
+                  <th data-field="memory" data-formatter="memoryFormatter" data-sorter="percentSorter" data-sortable="true">Memory</th>
+                  <th data-field="disk" data-formatter="diskFormatter" data-sorter="percentSorter" data-sortable="true">Disk</th>
+                  <th data-field="status" data-sortable="true">Status</th>
+                  <th data-field="id" data-formatter="actionFormatter" data-sortable="false">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <hr>
+
+    <p class="small text-muted">
+      <span style="float: left">Created as part of <a href="https://browndog.ncsa.illinois.edu">Brown Dog</a></span>
+      <span style="float: right">Layout and style by <a href="https://keen.io">Keen IO</a></span>
+    </p>
+
+  </div>
+
+  <script type="text/javascript" src="static/lib/js/jquery.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/bootstrap.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/bootstrap-table.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/crossfilter.js"></script>
+  <script type="text/javascript" src="static/lib/js/d3.js"></script>
+  <script type="text/javascript" src="static/lib/js/dc.min.js"></script>
+  <script type="text/javascript" src="static/lib/js/queue.js"></script>
+  <script type="text/javascript" src="static/lib/js/notify.min.js"></script>
+  <script type="text/javascript" src="static/js/nodes.js"></script>
+
+</body>
+</html>
