@@ -30,7 +30,6 @@ var coresTotalGroup, coresUsedGroup, memoryTotalGroup, memoryUsedGroup,
     diskTotalGroup, diskUsedGroup, diskDataGroup;
 
 function toggleMax() {
-    showmax = document.getElementById('chkShowMax').checked;
     drawSubGraphs();
     coresTimeChart.render();
     memoryTimeChart.render();
@@ -347,5 +346,25 @@ function drawSubGraphs() {
 
 }
 
-$("#period").change(loadData);
-$(window).load(loadData);
+$("#period").change(function() {
+	localStorage.period = $("#period").val();
+	loadData();
+});
+
+$("#chkShowMax").click(function() {
+    showmax = $('#chkShowMax').is(':checked');
+	localStorage.showMaximum = showmax;
+	toggleMax();
+});
+
+$(window).load(function() {
+	if (localStorage.showMaximum) {
+		showmax = (localStorage.showMaximum == 'true')
+	}
+	$('#chkShowMax').prop('checked', showmax);
+
+	if (localStorage.period) {
+		$("#period").val(localStorage.period)
+    }
+	loadData()
+});
