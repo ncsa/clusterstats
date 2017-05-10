@@ -129,10 +129,10 @@ class Swarm(object):
             return False, str(e)
 
     def service_update(self, service):
-        self._service_update(service, force=True)
+        return self._service_update(service, force=True)
 
     def service_scale(self, service, count):
-        self._service_update(service, count=count)
+        return self._service_update(service, count=count)
 
     def _service_update(self, service, count=None, force=False):
         (k, v) = utils.find_item(self.services, service)
@@ -203,7 +203,7 @@ class Swarm(object):
                                                           log_driver=log_driver,
                                                           force_update=force_update)
 
-                if count:
+                if count is not None:
                     mode = docker.types.ServiceMode("replicated", int(count))
                     # TODO bug in docker library, see https://github.com/docker/docker-py/issues/1572
                     if int(count) == 0:
@@ -237,7 +237,7 @@ class Swarm(object):
                                          update_config=update_config,
                                          networks=spec.get('Networks', None),
                                          endpoint_spec=endpoint_spec):
-                    if count:
+                    if count is not None:
                         v['replicas']['requested'] = int(count)
                     return True, 'OK'
                 else:

@@ -1,6 +1,5 @@
 import datetime
 import functools
-import os
 
 import flask
 
