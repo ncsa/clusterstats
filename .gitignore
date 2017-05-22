@@ -1,11 +1,3 @@
-*~
-old
-container.json
-containers.json
-node.json
-nodes.json
-service.json
-services.json
-stats.json
-swarm.json
-version.json
+.idea
+.env
+__pycache__
