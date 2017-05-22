@@ -84,7 +84,7 @@ function scale(id, replicas) {
 function serviceRestart(id) {
     var row = $("#services").bootstrapTable('getRowByUniqueId', id);
 
-    $.notify("Restarting " + row['name'] + " (takes 30 seconds)", "info");
+    $.notify("Restarting " + row['name'] + " (takes 30 seconds)", "info", {"autoHideDelay": 31000});
     $.ajax({
         type: "POST",
         url: "api/services/" + row.id + "/restart",
