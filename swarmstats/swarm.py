@@ -39,7 +39,7 @@ class Swarm(object):
         """
         Initialize class, start docker client, and threads to collect services, nodes and compute stats
 
-        :param url: url to connect to the docker client 
+        :param url: url to connect to the docker client
         :param timeout: timeout for all docker operations
         :param disksize: default disk size for the docker host
         """
@@ -304,7 +304,7 @@ class Swarm(object):
 
     def _collect_services(self):
         """
-        Collect all services running in swarm 
+        Collect all services running in swarm
         """
         while True:
             if 'services' not in self.threads:
@@ -354,7 +354,7 @@ class Swarm(object):
 
     def _collect_nodes(self):
         """
-        Collect all nodes in swarm. Each node discovered that is alive will cause a new thread to 
+        Collect all nodes in swarm. Each node discovered that is alive will cause a new thread to
         be started that will collect information about the node (such as containers).
         """
         while True:
@@ -451,7 +451,7 @@ class Swarm(object):
         """
         Collect all information on a node. This will collect all containers on the node, and start monitoring them.
 
-        :param node_id: the id of the node to be monitored 
+        :param node_id: the id of the node to be monitored
         """
         node = self.nodes[node_id]
 

@@ -25,7 +25,7 @@ users = {
 def find_item(where, what):
     """
     Tries to locate the item with either the id, or checks to see if it matches the name in the dict.
-    
+
     :param where: dict to to be searched
     :param what: what to look for
     :return: a tuple of the key and item found, or (None, None)
@@ -46,8 +46,8 @@ def find_item(where, what):
 def get_item(where, key, defaultvalue=None):
     """
     Finds the key in the dict. The key can be made up of multiple pieces seperated with a period.
-    
-    :param where: dict to search 
+
+    :param where: dict to search
     :param key: multiple keywords combined with a period
     :param defaultvalue: if the key is not found return this value
     :return: either the defaultvalue or the value found
@@ -64,7 +64,7 @@ def get_item(where, key, defaultvalue=None):
 def get_timestamp():
     """
     Generates a consistent timestamp. Timestamp is in ISO-8601 at UTC
-    
+
     :return: 8601 timestamp formated in UTC.
     """
     return datetime.datetime.utcnow().isoformat() + "Z"
@@ -73,8 +73,8 @@ def get_timestamp():
 def check_auth(username, password):
     """
     Checks if the given username and password match the know list of users and passwords.
-    
-    :param username: user to be checked 
+
+    :param username: user to be checked
     :param password: password to be checked
     :return: true if the user exists and their password matches
     """
@@ -92,7 +92,7 @@ def check_auth(username, password):
 def requires_user(*users):
     """
     Annotation to be added to functions to see if there is given a user and matches the list of users.
-    
+
     :param users: the list of acceptable users
     """
     def wrapper(f):
