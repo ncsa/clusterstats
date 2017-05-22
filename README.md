@@ -30,3 +30,9 @@ docker -H ${CLUSTER} service create \
 
 The swarmstats writes the stats to /home/core/*.json so it can be restarted and keep history. This is also the
 reason why the container is constraint to run on bd-swarm-sword-06.
+
+
+To run swarmscale container:
+```
+docker run --rm -it --publish 7777:7777 -e 'TZ=/usr/share/zoneinfo/US/Central' -e "MONGO_URL=mongodb://mongohostname:port" -e "SWARM_URL=http://username:passwd@swarmhostname:port" -e "Rabbitmq_URLS={'swarm-prefix1' : 'amqp://username:passwd@host:port/vhost1', 'swarm-prefix2' : 'amqp://username:passwd@host:port/vhost2'}" --name swarmscale bingzhang/swarmscale
+```
