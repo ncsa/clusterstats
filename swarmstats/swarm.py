@@ -14,6 +14,7 @@ import docker
 import docker.errors
 import docker.types
 import requests.exceptions
+import requests.packages.urllib3.exceptions
 
 import utils
 
@@ -394,17 +395,28 @@ class Swarm(object):
                                 'services': list(),
                                 'containers': list()
                             }
-                            self.threads[node.short_id] = dict()
-                            thread = threading.Thread(target=self._collect_node, args=[node.short_id])
-                            thread.daemon = True
-                            thread.start()
-                            self.logger.info("Adding node %s [id=%s]" % (hostname, node.short_id))
                     else:
                         old_node_ids.remove(node.short_id)
 
                     n = self.nodes[node.short_id]
                     n['role'] = attrs['Spec']['Role']
-                    n['status'] = attrs['Spec']['Availability']
+
+                    # only monitor node if it is not down
+                    status = attrs['Spec']['Availability']
+                    if status == 'active' and attrs['Status']['State'] != "ready":
+                        status = attrs['Status']['State']
+
+                    if n['status'] != status:
+                        n['status'] = status
+                        if status == 'down':
+                            self.threads.pop(node.short_id, None)
+                            self.logger.info("Stopping node %s, node is down" % node.short_id)
+                        elif node.short_id not in self.threads:
+                            self.threads[node.short_id] = dict()
+                            thread = threading.Thread(target=self._collect_node, args=[node.short_id])
+                            thread.daemon = True
+                            thread.start()
+                            self.logger.info("Adding node %s [id=%s]" % (n['name'], node.short_id))
 
                 with self.lock:
                     for key in old_node_ids:
@@ -414,7 +426,7 @@ class Swarm(object):
 
                 self.updates['nodes'] = utils.get_timestamp()
             except:  # pylint: disable=broad-except
-                self.logger.warning("Error collecting nodes.")
+                self.logger.exception("Error collecting nodes.")
             time.sleep(self.timeouts['nodes'])
 
     def _collect_node(self, node_id):
@@ -492,6 +504,8 @@ class Swarm(object):
                 node['updated'] = utils.get_timestamp()
             except requests.exceptions.ReadTimeout:
                 self.logger.info("Timeout collecting containers for node %s." % node_id)
+            except requests.exceptions.ConnectTimeout:
+                self.logger.info("Timeout collecting containers for node %s." % node_id)
             except:  # pylint: disable=broad-except
                 self.logger.exception("Error collecting containers for node %s." % node_id)
 
@@ -550,6 +564,10 @@ class Swarm(object):
                 self.logger.info("Docker exception %s : %s" % (container.short_id, e.explanation))
             except requests.exceptions.ReadTimeout:
                 self.logger.info("Timeout getting stats for %s" % container.short_id)
+            except requests.exceptions.ConnectionError:
+                self.logger.info("Connection error getting stats for %s" % container.short_id)
+            except requests.packages.urllib3.exceptions.ReadTimeoutError:
+                self.logger.info("Connection error getting stats for %s" % container.short_id)
             except:  # pylint: disable=broad-except
                 self.logger.exception("Error collecting stats for %s" % container.short_id)
 
