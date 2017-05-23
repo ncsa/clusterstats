@@ -744,7 +744,7 @@ class Swarm(object):
         if period not in self.stats[what]:
             self.stats[what][period] = list()
 
-        data['time'] = time_bin.isoformat()
+        data['time'] = time_bin.isoformat() + "Z"
         data['_count'] = 1
         for x in self.stats[what][period]:
             if x['time'] == data['time']:
