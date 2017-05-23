@@ -1,6 +1,7 @@
 import copy
 import datetime
 import dateutil.parser
+import dateutil.tz
 import inspect
 import json
 import logging
@@ -700,7 +701,7 @@ class Swarm(object):
             time.sleep(self.timeouts['stats'])
 
     def _compute_bin(self, what, data, period):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.utcnow().replace(tzinfo=dateutil.tz.tzutc())
 
         if period == '1hour':
             time_bin = now.replace(second=0, microsecond=0)
@@ -744,7 +745,7 @@ class Swarm(object):
         if period not in self.stats[what]:
             self.stats[what][period] = list()
 
-        data['time'] = time_bin.isoformat() + "Z"
+        data['time'] = time_bin.isoformat()
         data['_count'] = 1
         for x in self.stats[what][period]:
             if x['time'] == data['time']:
