@@ -60,8 +60,7 @@ class Swarm(object):
             'cores': {'total': 0, 'used': 0},
             'memory': {'total': 0, 'used': 0},
             'disk': {'available': 0, 'used': 0, 'data': 0},
-            'managers': list(),
-            'nodes': {'active': list(), 'drain': list(), 'down': list()},
+            'nodes': {'managers': list(), 'active': list(), 'drain': list(), 'down': list()},
             'services': list(),
             'containers': list(),
         }
@@ -118,6 +117,7 @@ class Swarm(object):
                     'containers': list(),
                     'image': kwargs.get("image", None),
                     'env': kwargs.get("env", list()),
+                    'labels': kwargs.get("labels", dict()),
                     'nodes': list(),
                     'cores': 0,
                     'memory': 0,
@@ -311,7 +311,7 @@ class Swarm(object):
                 break
 
             try:
-                service_ids = list(self.services.keys())
+                old_service_ids = list(self.services.keys())
                 for service in self.client.services.list():
                     if service.short_id not in self.services:
                         self.swarm['services'].append(service.short_id)
@@ -322,6 +322,7 @@ class Swarm(object):
                                 'containers': list(),
                                 'image': None,
                                 'env': list(),
+                                'labels': dict(),
                                 'nodes': list(),
                                 'cores': 0,
                                 'memory': 0,
@@ -329,7 +330,8 @@ class Swarm(object):
                             }
                             self.logger.info("Adding service %s [id=%s]" % (service.name, service.short_id))
                     else:
-                        service_ids.remove(service.short_id)
+                        old_service_ids.remove(service.short_id)
+
                     v = utils.get_item(service.attrs, 'Spec.Mode.Replicated.Replicas', 0)
                     self.services[service.short_id]['replicas']['requested'] = v
                     image = utils.get_item(service.attrs, 'Spec.TaskTemplate.ContainerSpec.Image', None)
@@ -339,13 +341,13 @@ class Swarm(object):
                     self.services[service.short_id]['env'] = utils.get_item(service.attrs,
                                                                             'Spec.TaskTemplate.ContainerSpec.Env',
                                                                             list())
+                    self.services[service.short_id]['labels'] = utils.get_item(service.attrs,
+                                                                               'Spec.Labels',
+                                                                               dict())
                 with self.lock:
-                    for key in service_ids:
-                        service = self.services.pop(key, None)
-                        if key in self.swarm['services']:
-                            self.swarm['services'].remove(key)
-                        if service:
-                            self.logger.info("Removing service %s [id=%s]" % (service['name'], key))
+                    for key in old_service_ids:
+                        self.services.pop(key, None)
+                        self.logger.info("Removing service %s" % key)
 
                 self.updates['services'] = utils.get_timestamp()
             except:  # pylint: disable=broad-except
@@ -361,11 +363,11 @@ class Swarm(object):
             if 'nodes' not in self.threads:
                 break
             try:
-                node_ids = list(self.nodes.keys())
+                old_node_ids = list(self.nodes.keys())
                 for node in self.client.nodes.list():
                     attrs = node.attrs
 
-                    if node.short_id not in node_ids:
+                    if node.short_id not in self.nodes:
                         description = attrs['Description']
                         resources = description['Resources']
                         cores = int(resources['NanoCPUs'] / 1000000000)
@@ -387,60 +389,28 @@ class Swarm(object):
                                 'cores': {'total': cores, 'used': 0},
                                 'memory': {'total': memory, 'used': 0},
                                 'disk': {'available': disk, 'used': 0, 'data': 0},
+                                'role': attrs['Spec']['Role'],
                                 'status': None,
                                 'services': list(),
                                 'containers': list()
                             }
-                    else:
-                        node_ids.remove(node.short_id)
-
-                    n = self.nodes[node.short_id]
-                    if attrs['Spec']['Role'] == 'manager':
-                        if node.short_id not in self.swarm['managers']:
-                            self.swarm['managers'].append(node.short_id)
-                    oldstatus = n['status']
-                    newstatus = attrs['Spec']['Availability']
-                    if newstatus != oldstatus:
-                        self.nodes[node.short_id]['status'] = newstatus
-
-                        if oldstatus:
-                            self.swarm['nodes'][oldstatus].remove(node.short_id)
-                        if oldstatus == 'active':
-                            self.swarm['cores']['total'] -= n['cores']['total']
-                            self.swarm['memory']['total'] -= n['memory']['total']
-                            self.swarm['disk']['available'] -= n['disk']['available']
-
-                            self.threads.pop(node.short_id, None)
-                            for k, v in self.containers.items():
-                                if v['node'] == node.short_id:
-                                    self.threads.pop(k, None)
-                                    self.logger.info("Stopping container collection %s [id=%s]" % (v['name'], k))
-                            self.logger.info("Stopping node collection %s [id=%s]" % (n['name'], node.short_id))
-
-                        if newstatus:
-                            if newstatus not in self.swarm['nodes']:
-                                self.swarm['nodes'][newstatus] = list()
-                            self.swarm['nodes'][newstatus].append(node.short_id)
-                        if newstatus == 'active':
-                            self.swarm['cores']['total'] += n['cores']['total']
-                            self.swarm['memory']['total'] += n['memory']['total']
-                            self.swarm['disk']['available'] += n['disk']['available']
-
                             self.threads[node.short_id] = dict()
                             thread = threading.Thread(target=self._collect_node, args=[node.short_id])
                             thread.daemon = True
                             thread.start()
-                            self.logger.info("Starting collection node %s [id=%s]" % (n['name'], node.short_id))
+                            self.logger.info("Adding node %s [id=%s]" % (hostname, node.short_id))
+                    else:
+                        old_node_ids.remove(node.short_id)
+
+                    n = self.nodes[node.short_id]
+                    n['role'] = attrs['Spec']['Role']
+                    n['status'] = attrs['Spec']['Availability']
 
                 with self.lock:
-                    for key in node_ids:
-                        node = self.nodes.pop(key, None)
-                        for k, v in self.containers.items():
-                            if v['node'] == node.short_id:
-                                self.threads.pop(k, None)
-                                self.logger.info("Stopping container collection %s [id=%s]" % (v['name'], k))
-                        if node:
-                            self.logger.info("Removing node %s [id=%s]" % (node['name'], key))
+                    for key in old_node_ids:
+                        self.threads.pop(key, None)
+                        self.nodes.pop(key, None)
+                        self.logger.info("Removing node %s" % key)
 
                 self.updates['nodes'] = utils.get_timestamp()
             except:  # pylint: disable=broad-except
@@ -457,6 +427,7 @@ class Swarm(object):
 
         client = docker.DockerClient(base_url=node['url'], version="auto", timeout=self.timeouts['docker'])
         next_full = time.time() + self.timeouts['node']
+        old_container_ids = list()
         while True:
             if node_id not in self.threads:
                 break
@@ -467,101 +438,56 @@ class Swarm(object):
                 else:
                     size = False
 
-                container_ids = list(node['containers'])
+                container_ids = list()
                 for container in client.api.containers(size=size):
                     container_id = container['Id'][:10]
-                    if container_id in container_ids:
-                        container_ids.remove(container_id)
-                    else:
-                        node['containers'].append(container_id)
-                    if container_id not in self.swarm['containers']:
-                        self.swarm['containers'].append(container_id)
+                    container_ids.append(container_id)
+                    if container_id in old_container_ids:
+                        old_container_ids.remove(container_id)
                     if container_id not in self.containers:
+                        inspect = client.containers.get(container_id)
+                        labels = utils.get_item(inspect.attrs, 'Config.Labels', dict())
+                        if 'com.docker.swarm.service.id' in labels and 'com.docker.swarm.service.name' in labels:
+                            service_id = labels['com.docker.swarm.service.id'][:10]
+                            service = {'id': service_id, 'name': labels['com.docker.swarm.service.name']}
+                        else:
+                            service = None
                         with self.lock:
                             self.containers[container_id] = {
-                                'name': ",".join(container['Names']),
+                                'name': inspect.name,
                                 'state': None,
                                 'status': container['Status'],
-                                'env': list(),
+                                'env': utils.get_item(inspect.attrs, 'Config.Env', list()),
+                                'labels': labels,
                                 'cores': 0,
                                 'memory': 0,
                                 'disk': {'used': 0, 'data': 0},
-                                'service': None,
-                                'node': node_id
+                                'service': service,
+                                'node': {'id': node_id, 'name': node['name']}
                             }
-                            self.logger.info("Adding container %s [id=%s] on node %s" % (",".join(container['Names']),
-                                                                                         container_id, node_id))
+                            self.threads[container_id] = dict()
+                            thread = threading.Thread(target=self._collect_container, args=[inspect])
+                            thread.daemon = True
+                            thread.start()
+                            self.logger.info("Adding container %s on node %s" % (container_id, node_id))
+
                     c = self.containers[container_id]
-
-                    labels = container['Labels']
-                    if 'com.docker.swarm.service.id' in labels and 'com.docker.swarm.service.name' in labels:
-                        service_id = labels['com.docker.swarm.service.id'][:10]
-                        c['service'] = service_id
-                        if service_id in self.services:
-                            if container_id not in self.services[service_id]['containers']:
-                                self.services[service_id]['containers'].append(container_id)
-                                self.services[service_id]['replicas']['running'] += 1
-                            if node_id not in self.services[service_id]['nodes']:
-                                self.services[service_id]['nodes'].append(node_id)
-                        if service_id not in node['services']:
-                            node['services'].append(service_id)
-
                     c['status'] = container['Status']
-                    c['env'] = utils.get_item(container, 'Spec.TaskTemplate.ContainerSpec.Env', list())
 
                     # update size stats
                     if size:
                         # 'SizeRootFs' == size of all files
-                        # 'SizeRw' == size of all files added to image
-                        diff = container.get('SizeRootFs', 0) - c['disk']['used']
-                        self.swarm['disk']['used'] += diff
-                        node['disk']['used'] += diff
-                        self.services[c['service']]['disk']['used'] += diff
                         c['disk']['used'] = container.get('SizeRootFs', 0)
-                        diff = container.get('SizeRw', 0) - c['disk']['data']
-                        self.swarm['disk']['data'] += diff
-                        node['disk']['data'] += diff
-                        self.services[c['service']]['disk']['data'] += diff
+                        # 'SizeRw' == size of all files added to image
                         c['disk']['data'] = container.get('SizeRw', 0)
 
-                    # collect container stats if needed
-                    oldstate = c['state']
-                    newstate = container['State']
-                    if oldstate != newstate:
-                        c['state'] = newstate
-                        if oldstate == 'running':
-                            self.threads.pop(container_id, None)
-                            self.swarm['containers'].append(container_id)
-                            node['containers'].append(container_id)
-                            self.containers.pop(container_id, None)
-                            self.logger.info("Stopping container collection %s [id=%s]" % (c['name'], container_id))
-                        else:
-                            self.swarm['containers'].remove(container_id)
-                            node['containers'].remove(container_id)
-
-                            self.threads[container_id] = dict()
-                            x = client.containers.get(container_id)
-                            thread = threading.Thread(target=self._collect_container, args=[x])
-                            thread.daemon = True
-                            thread.start()
-                            self.logger.info("Starting container collection %s [id=%s]" % (c['name'], container_id))
-
+                # stop container thread, and remove container
                 with self.lock:
-                    for key in container_ids:
+                    for key in old_container_ids:
+                        self.logger.info("Removing container %s on node %s" % (key, node_id))
                         self.threads.pop(key, None)
-                        container = self.containers.pop(key, None)
-                        if key in node['containers']:
-                            node['containers'].remove(key)
-                        if key in self.swarm['containers']:
-                            self.swarm['containers'].remove(key)
-                        if container:
-                            service_id = container['service']
-                            self.services[service_id]['containers'].remove(key)
-                            self.services[service_id]['replicas']['running'] -= 1
-                            self.services[service_id]['nodes'].append(node_id)
-                            node['services'].remove(service_id)
-                            self.logger.info("Removing container %s [id=%s] on node %s" % (container['name'],
-                                                                                           key, node_id))
+                        self.containers.pop(key, None)
+                old_container_ids = container_ids
 
                 node['updated'] = utils.get_timestamp()
             except requests.exceptions.ReadTimeout:
@@ -570,7 +496,13 @@ class Swarm(object):
                 self.logger.exception("Error collecting containers for node %s." % node_id)
 
             time.sleep(self.timeouts['node'])
-        self.logger.info("Stop collecting for node %s." % node_id)
+
+        # done collecting node, remove containers
+        with self.lock:
+            for key in old_container_ids:
+                self.logger.info("Removing container %s on node %s" % (key, node_id))
+                self.threads.pop(key, None)
+                self.containers.pop(key, None)
 
     def _collect_container(self, container):
         """
@@ -628,43 +560,90 @@ class Swarm(object):
             if 'compute' not in self.threads:
                 break
             try:
-                swarm_stats = {'cores': 0, 'memory': 0, 'disk': 0, 'data': 0}
-                nodes_stats = {k: {'cores': 0, 'memory': 0, 'disk': 0, 'data': 0} for k in self.nodes.keys()}
-                services_stats = {k: {'cores': 0, 'memory': 0, 'disk': 0, 'data': 0} for k in self.services.keys()}
+                swarm_stats = {'cores': {'total': 0, 'used': 0},
+                               'memory': {'total': 0, 'used': 0},
+                               'disk': {'available': 0, 'used': 0, 'data': 0},
+                               'nodes': {'managers': list(), 'active': list(), 'down': list(), 'drain': list()},
+                               'services': list(),
+                               'containers': list()}
+                nodes_stats = {k: {'cores': {'total': 0, 'used': 0},
+                                   'memory': {'total': 0, 'used': 0},
+                                   'disk': {'available': 0, 'used': 0, 'data': 0},
+                                   'services': list(),
+                                   'containers': list()}
+                               for k in self.nodes.keys()}
+                services_stats = {k: {'cores': 0,
+                                      'memory': 0,
+                                      'disk': {'used': 0, 'data': 0},
+                                      'nodes': list(),
+                                      'containers': list()}
+                                  for k in self.services.keys()}
 
-                # compute cores/memory
-                with self.lock:
-                    for k, v in self.containers.items():
-                        s = self.threads.get(k)
-                        if s:
-                            if s['cores']:
-                                swarm_stats['cores'] += s['cores']
-                                if v['node']:
-                                    nodes_stats[v['node']]['cores'] += s['cores']
-                                if v['service']:
-                                    services_stats[v['service']]['cores'] += s['cores']
-                            if s['memory']:
-                                swarm_stats['memory'] += s['memory']
-                                if v['node']:
-                                    nodes_stats[v['node']]['memory'] += s['memory']
-                                if v['service']:
-                                    services_stats[v['service']]['memory'] += s['memory']
-                        swarm_stats['disk'] += v['disk']['used']
-                        swarm_stats['data'] += v['disk']['data']
-                        if v['node'] in nodes_stats:
-                            nodes_stats[v['node']]['disk'] += v['disk']['used']
-                            nodes_stats[v['node']]['data'] += v['disk']['data']
-                        if v['service'] in services_stats:
-                            services_stats[v['service']]['disk'] += v['disk']['used']
-                            services_stats[v['service']]['data'] += v['disk']['data']
+                # collect nodes
+                for k, v in self.nodes.items():
+                    node = {'id': k, 'name': v['name']}
+                    swarm_stats['nodes'][v['status']].append(node)
+                    if v['role'] == 'manager':
+                        swarm_stats['nodes']['managers'].append(node)
+                    swarm_stats['disk']['available'] += v['disk']['available']
+                    swarm_stats['cores']['total'] += v['cores']['total']
+                    swarm_stats['memory']['total'] += v['memory']['total']
+                    nodes_stats[k]['disk']['available'] = v['disk']['available']
+                    nodes_stats[k]['cores']['total'] = v['cores']['total']
+                    nodes_stats[k]['memory']['total'] = v['memory']['total']
 
-                # swarm stats
-                self.swarm['cores']['used'] = swarm_stats['cores']
-                self.swarm['memory']['used'] = swarm_stats['memory']
-                self.swarm['disk']['used'] = swarm_stats['disk']
-                self.swarm['disk']['data'] = swarm_stats['data']
+                # collect services
+                for k, v in self.services.items():
+                    swarm_stats['services'].append({'id': k, 'name': v['name']})
+
+                # collect containers
+                for k, v in self.containers.items():
+                    container = {'id': k, 'name': v['name']}
+                    node_id = v['node']['id']
+                    service_id = v['service']['id']
+                    stats = self.threads.get(k, None)
+
+                    swarm_stats['containers'].append(container)
+                    swarm_stats['disk']['used'] += v['disk']['used']
+                    swarm_stats['disk']['data'] += v['disk']['data']
+                    if stats:
+                        if stats['cores']:
+                            swarm_stats['cores']['used'] += stats['cores']
+                        if stats['memory']:
+                            swarm_stats['memory']['used'] += stats['memory']
+
+                    if node_id in nodes_stats:
+                        nodes_stats[node_id]['containers'].append(container)
+                        nodes_stats[node_id]['disk']['used'] += v['disk']['used']
+                        nodes_stats[node_id]['disk']['data'] += v['disk']['data']
+                        if stats:
+                            if stats['cores']:
+                                nodes_stats[node_id]['cores']['used'] += stats['cores']
+                            if stats['memory']:
+                                nodes_stats[node_id]['memory']['used'] += stats['memory']
+                        if not any(d['id'] == service_id for d in nodes_stats[node_id]['services']):
+                            nodes_stats[node_id]['services'].append(v['service'])
+
+                    if service_id in services_stats:
+                        services_stats[service_id]['containers'].append(container)
+                        services_stats[service_id]['disk']['used'] += v['disk']['used']
+                        services_stats[service_id]['disk']['data'] += v['disk']['data']
+                        if stats:
+                            if stats['cores']:
+                                services_stats[service_id]['cores'] += stats['cores']
+                            if stats['memory']:
+                                services_stats[service_id]['memory'] += stats['memory']
+                        if not any(d['id'] == node_id for d in services_stats[service_id]['nodes']):
+                            services_stats[service_id]['nodes'].append(v['node'])
+
+                # update with collected information
+                self.swarm['services'] = swarm_stats['services']
+                self.swarm['nodes'] = swarm_stats['nodes']
+                self.swarm['containers'] = swarm_stats['containers']
+                self.swarm['disk'] = swarm_stats['disk']
+                self.swarm['cores'] = swarm_stats['cores']
+                self.swarm['memory'] = swarm_stats['memory']
                 deepcopy = copy.deepcopy(self.swarm)
-                deepcopy.pop("managers")
                 deepcopy['containers'] = len(deepcopy['containers'])
                 deepcopy['services'] = len(deepcopy['services'])
                 deepcopy['nodes'] = len(deepcopy['nodes']['active'])
@@ -679,17 +658,20 @@ class Swarm(object):
 
                 # node stats
                 for k, v in nodes_stats.items():
-                    self.nodes[k]['cores']['used'] = v['cores']
-                    self.nodes[k]['memory']['used'] = v['memory']
-                    self.nodes[k]['disk']['used'] = v['disk']
-                    self.nodes[k]['disk']['data'] = v['data']
+                    self.nodes[k]['services'] = v['services']
+                    self.nodes[k]['containers'] = v['containers']
+                    self.nodes[k]['disk'] = v['disk']
+                    self.nodes[k]['cores'] = v['cores']
+                    self.nodes[k]['memory'] = v['memory']
 
                 # service stats
                 for k, v in services_stats.items():
+                    self.services[k]['nodes'] = v['nodes']
+                    self.services[k]['containers'] = v['containers']
+                    self.services[k]['replicas']['running'] = len(v['containers'])
+                    self.services[k]['disk'] = v['disk']
                     self.services[k]['cores'] = v['cores']
                     self.services[k]['memory'] = v['memory']
-                    self.services[k]['disk']['used'] = v['disk']
-                    self.services[k]['disk']['data'] = v['data']
 
                 # save
                 with open(os.path.join(self.folder, 'stats.json'), "w") as f:
