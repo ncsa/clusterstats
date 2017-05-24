@@ -29,6 +29,44 @@ var swarmDateDim;
 var coresTotalGroup, coresUsedGroup, memoryTotalGroup, memoryUsedGroup,
     diskTotalGroup, diskUsedGroup, diskDataGroup;
 
+function colorScale() {
+	// from http://colorbrewer2.org/#type=sequential&scheme=YlOrRd&n=4
+	return d3.scale.ordinal()
+		.domain([0, 1, 2, 3])
+        .range(["#99e699",
+				"#fff94d",
+				"#ffcc80",
+				"#ff8080"]);
+}
+
+function colorScaleReplicas(d) {
+	if (d.value >  10.0) return 3;
+	if (d.value >   5.0) return 2;
+	if (d.value >   2.0) return 1;
+	return 0;
+}
+
+function colorScaleCores(d) {
+	if (d.value >  2.0) return 3;
+	if (d.value >  1.0) return 2;
+	if (d.value >  0.5) return 1;
+	return 0;
+}
+
+function colorScaleMemory(d) {
+	if (d.value >  2000000000) return 3;
+	if (d.value >  1000000000) return 2;
+	if (d.value >   500000000) return 1;
+	return 0;
+}
+
+function colorScaleDisk(d) {
+	if (d.value >  2000000000) return 3;
+	if (d.value >  1000000000) return 2;
+	if (d.value >   500000000) return 1;
+	return 0;
+}
+
 function toggleMax() {
     drawSubGraphs();
     coresTimeChart.render();
@@ -79,7 +117,8 @@ function drawGraphs(error, swarmStats, services) {
     var minDate = swarmDateDim.bottom(1)[0]["time"],
         maxDate = swarmDateDim.top(1)[0]["time"];
 
-	// Create charts
+    // Define colors
+	var colors = colorScale();
 
     // number charts
 	nodesTotalChart
@@ -149,6 +188,8 @@ function drawGraphs(error, swarmStats, services) {
         .ordering(function(d) { return -d.value; })
 		.title(function(d) { return d.key + ': ' + d.value; })
         .cap(4)
+		.colors(colors)
+		.colorAccessor(colorScaleReplicas)
         .othersGrouper(false)
         .group(servicesReplicasGroup)
         .dimension(servicesNameDim)
@@ -162,6 +203,8 @@ function drawGraphs(error, swarmStats, services) {
         .ordering(function(d) { return -d.value; })
 		.title(function(d) { return d.key + ': ' + d3.format(".2f")(d.value); })
         .cap(4)
+		.colors(colors)
+		.colorAccessor(colorScaleCores)
         .othersGrouper(false)
         .group(servicesCoreGroup)
         .dimension(servicesNameDim)
@@ -175,6 +218,8 @@ function drawGraphs(error, swarmStats, services) {
         .ordering(function(d) { return -d.value; })
 		.title(function(d) { return d.key + ': ' + d3.format(".2s")(d.value); })
         .cap(4)
+		.colors(colors)
+		.colorAccessor(colorScaleMemory)
         .othersGrouper(false)
         .group(servicesMemoryGroup)
         .dimension(servicesNameDim)
@@ -188,6 +233,8 @@ function drawGraphs(error, swarmStats, services) {
         .ordering(function(d) { return -d.value; })
 		.title(function(d) { return d.key + ': ' + d3.format(".2s")(d.value); })
         .cap(4)
+		.colors(colors)
+		.colorAccessor(colorScaleDisk)
         .othersGrouper(false)
         .group(servicesStorageDataGroup)
         .dimension(servicesNameDim)
