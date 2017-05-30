@@ -258,10 +258,10 @@ class Swarm(object):
         # TODO work with generator
         all_logs = []
         for c in s['containers']:
-            for line in self.container_log(c, lines, True).split("\n"):
+            for line in self.container_log(c['id'], lines, True).split("\n"):
                 pieces = line.split(maxsplit=1)
                 if len(pieces) == 2:
-                    all_logs.append({'time': pieces[0], 'container': c, 'log': pieces[1]})
+                    all_logs.append({'time': pieces[0], 'container': c['id'], 'log': pieces[1]})
         sorted_logs = sorted(all_logs, key=lambda x: x['time'])
 
         if lines != 'all':
@@ -285,7 +285,7 @@ class Swarm(object):
         if not k:
             return None
 
-        node = self.nodes[v['node']]
+        node = self.nodes[v['node']['id']]
         if 'url' in node:
             result = ""
             client = docker.APIClient(base_url=node['url'], version="auto", timeout=self.timeouts['docker'])
