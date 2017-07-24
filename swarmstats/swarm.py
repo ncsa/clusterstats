@@ -622,7 +622,9 @@ class Swarm(object):
                 for k, v in self.containers.items():
                     container = {'id': k, 'name': v['name']}
                     node_id = v['node']['id']
-                    service_id = v['service']['id']
+                    service_id = None
+                    if v['service']:
+                        service_id = v['service']['id']
                     stats = self.threads.get(k, None)
 
                     swarm_stats['containers'].append(container)
@@ -643,7 +645,7 @@ class Swarm(object):
                                 nodes_stats[node_id]['cores']['used'] += stats['cores']
                             if stats['memory']:
                                 nodes_stats[node_id]['memory']['used'] += stats['memory']
-                        if not any(d['id'] == service_id for d in nodes_stats[node_id]['services']):
+                        if service_id and not any(d['id'] == service_id for d in nodes_stats[node_id]['services']):
                             nodes_stats[node_id]['services'].append(v['service'])
 
                     if service_id in services_stats:
