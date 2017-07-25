@@ -8,19 +8,19 @@ PUSH=${PUSH:-""}
 
 echo -e "inputs: \$1 username, \$2 passwwd, \$3 project keyword"
 
-USER=$1
-PASSWD=$2
-PROJ_KEYWORD=$3
 TAG=latest
-
 # new tag to be pushed on docker hub
 NewTag=browndog
 
-if [ -z "$1" ] || [ -z "$2" ]
+if [ -z "$1" ] || [ -z "$2" ] || [ -z "$3" ]
 then
     echo "failed to give all input params"
     exit 128
 fi
+
+USER=$1
+PASSWD=$2
+PROJ_KEYWORD=$3
 
 case "${PROJ_KEYWORD}" in
     POL*)     PROJECT=ncsapolyglot;;
