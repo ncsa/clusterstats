@@ -28,10 +28,10 @@ case "${PROJ_KEYWORD}" in
     *)        echo "UNKNOWN:${PROJ_KEYWORD}"; exit 128
 esac
 
-read -a names <<< $(./bitbucket.sh $USER $PASSWD $PROJ_KEYWORD names)
-
+reponames=$(./bitbucket.sh $USER $PASSWD $PROJ_KEYWORD names)
 if [ 0 == "$?" ]
 then
+    read -a names <<< $reponames
     for name in "${names[@]}"
     do
         ${DEBUG} docker pull ${PROJECT}/$name:${TAG}
