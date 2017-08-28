@@ -36,3 +36,8 @@ To run swarmscale container:
 ```
 docker run --rm -it --publish 7777:7777 -e 'TZ=/usr/share/zoneinfo/US/Central' -e "MONGO_URL=mongodb://mongohostname:port" -e "SWARM_URL=http://username:passwd@swarmhostname:port" -e "Rabbitmq_URLS={'swarm-prefix1' : 'amqp://username:passwd@host:port/vhost1', 'swarm-prefix2' : 'amqp://username:passwd@host:port/vhost2'}" --name swarmscale bingzhang/swarmscale
 ```
+
+To run swarmtoolcatalog container:
+```
+docker run --rm -it --publish 5555:5555 -e 'DEPLOY_QUEUENAME=deploy_queuename' -e 'TZ=/usr/share/zoneinfo/US/Central' -e "MONGO_URL=mongodb://mongohostname:port" -e "SWARM_URL=http://username:passwd@swarmhostname:port" -e "Rabbitmq_URLS={'swarm-prefix1' : 'amqp://username:passwd@host:port/vhost1?extra_params', 'swarm-prefix2' : 'amqp://username:passwd@host:port/vhost2?extra_params'}" --name swarmtoolcatalog bingzhang/swarmtoolcatalog
+```
