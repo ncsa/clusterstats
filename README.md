@@ -1,4 +1,3 @@
-
 To create a cluster run:
   ./cluster.sh
 
@@ -45,7 +44,7 @@ docker run --rm -it --publish 7777:7777 -e 'TZ=/usr/share/zoneinfo/US/Central' -
 
 Current scale DB tuple example:
 ```
-vhost	    | service_name 	              | queue_name 	  | timestamp 	                  | decision | replica | message_ready | consumer
+vhost	    | service_name 	          | queue_name 	  | timestamp 	                  | decision | replica | message_ready | consumer
 clowder-dev | dev-extractor-ncsa_cv_faces | ncsa.cv.faces | Wed, 30 Aug 2017 15:38:36 GMT | scale up | 2       | 100	       | 1
 ```
 
