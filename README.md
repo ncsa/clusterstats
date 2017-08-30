@@ -1,4 +1,3 @@
-## BD Swarm State Component
 
 To create a cluster run:
   ./cluster.sh
