@@ -92,23 +92,24 @@ class Swarm(object):
         thread = threading.Thread(target=self._collect_services)
         thread.daemon = True
         thread.start()
-        self.logger.info("Start collecting services")
+        self.logger.debug("Start collecting services")
 
         # start thread to collect nodes
         self.threads['nodes'] = dict()
         thread = threading.Thread(target=self._collect_nodes)
         thread.daemon = True
         thread.start()
-        self.logger.info("Start collecting nodes")
+        self.logger.debug("Start collecting nodes")
 
         # start thread to compute stats
         self.threads['compute'] = dict()
         thread = threading.Thread(target=self._compute)
         thread.daemon = True
         thread.start()
-        self.logger.info("Start computing stats")
+        self.logger.debug("Start computing stats")
 
     def service_create(self, **kwargs):
+        self.logger.info("Creating service with name %s" % kwargs.get("name", None))
         client = docker.DockerClient(base_url=self.swarm_url, version='auto')
         try:
             service = client.services.create(**kwargs)
@@ -131,9 +132,11 @@ class Swarm(object):
             return False, str(e)
 
     def service_update(self, service):
+        self.logger.info("Updating service with name/id %s to latest image" % service)
         return self._service_update(service, force=True)
 
     def service_scale(self, service, count):
+        self.logger.info("Scaling service with name/id %s to %d replicas" % (service, count))
         return self._service_update(service, count=count)
 
     def _service_update(self, service, count=None, force=False):
@@ -298,7 +301,7 @@ class Swarm(object):
                 else:
                     result = log.decode('utf-8')
             except docker.errors.NotFound:
-                self.logger.info("Trying to get log from container '%s' that no longer exists." % container)
+                self.logger.debug("Trying to get log from container '%s' that no longer exists." % container)
                 result = "Countainer %s is no longer running." % container
         else:
             result = "Could not connect to docker host, no logs returned for %s." % container
@@ -330,7 +333,7 @@ class Swarm(object):
                                 'memory': 0,
                                 'disk': {'used': 0, 'data': 0},
                             }
-                            self.logger.info("Adding service %s [id=%s]" % (service.name, service.short_id))
+                            self.logger.debug("Adding service %s [id=%s]" % (service.name, service.short_id))
                     else:
                         old_service_ids.remove(service.short_id)
 
@@ -349,7 +352,7 @@ class Swarm(object):
                 with self.lock:
                     for key in old_service_ids:
                         self.services.pop(key, None)
-                        self.logger.info("Removing service %s" % key)
+                        self.logger.debug("Removing service %s" % key)
 
                 self.updates['services'] = utils.get_timestamp()
             except:  # pylint: disable=broad-except
@@ -411,19 +414,19 @@ class Swarm(object):
                         n['status'] = status
                         if status == 'down':
                             self.threads.pop(node.short_id, None)
-                            self.logger.info("Stopping node %s, node is down" % node.short_id)
+                            self.logger.debug("Stopping node %s, node is down" % node.short_id)
                         elif node.short_id not in self.threads:
                             self.threads[node.short_id] = dict()
                             thread = threading.Thread(target=self._collect_node, args=[node.short_id])
                             thread.daemon = True
                             thread.start()
-                            self.logger.info("Adding node %s [id=%s]" % (n['name'], node.short_id))
+                            self.logger.debug("Adding node %s [id=%s]" % (n['name'], node.short_id))
 
                 with self.lock:
                     for key in old_node_ids:
                         self.threads.pop(key, None)
                         self.nodes.pop(key, None)
-                        self.logger.info("Removing node %s" % key)
+                        self.logger.debug("Removing node %s" % key)
 
                 self.updates['nodes'] = utils.get_timestamp()
             except:  # pylint: disable=broad-except
@@ -482,7 +485,7 @@ class Swarm(object):
                             thread = threading.Thread(target=self._collect_container, args=[inspect])
                             thread.daemon = True
                             thread.start()
-                            self.logger.info("Adding container %s on node %s" % (container_id, node_id))
+                            self.logger.debug("Adding container %s on node %s" % (container_id, node_id))
 
                     c = self.containers[container_id]
                     c['status'] = container['Status']
@@ -497,16 +500,16 @@ class Swarm(object):
                 # stop container thread, and remove container
                 with self.lock:
                     for key in old_container_ids:
-                        self.logger.info("Removing container %s on node %s" % (key, node_id))
+                        self.logger.debug("Removing container %s on node %s" % (key, node_id))
                         self.threads.pop(key, None)
                         self.containers.pop(key, None)
                 old_container_ids = container_ids
 
                 node['updated'] = utils.get_timestamp()
             except requests.exceptions.ReadTimeout:
-                self.logger.info("Timeout collecting containers for node %s." % node_id)
+                self.logger.debug("Timeout collecting containers for node %s." % node_id)
             except requests.exceptions.ConnectTimeout:
-                self.logger.info("Timeout collecting containers for node %s." % node_id)
+                self.logger.debug("Timeout collecting containers for node %s." % node_id)
             except:  # pylint: disable=broad-except
                 self.logger.exception("Error collecting containers for node %s." % node_id)
 
@@ -515,7 +518,7 @@ class Swarm(object):
         # done collecting node, remove containers
         with self.lock:
             for key in old_container_ids:
-                self.logger.info("Removing container %s on node %s" % (key, node_id))
+                self.logger.debug("Removing container %s on node %s" % (key, node_id))
                 self.threads.pop(key, None)
                 self.containers.pop(key, None)
 
@@ -560,15 +563,15 @@ class Swarm(object):
                         c['memory'] = memory
                     mystats['memory'] = memory
             except docker.errors.NotFound:
-                self.logger.info("Container %s is gone?" % container.short_id)
+                self.logger.debug("Container %s is gone?" % container.short_id)
             except docker.errors.APIError as e:
-                self.logger.info("Docker exception %s : %s" % (container.short_id, e.explanation))
+                self.logger.debug("Docker exception %s : %s" % (container.short_id, e.explanation))
             except requests.exceptions.ReadTimeout:
-                self.logger.info("Timeout getting stats for %s" % container.short_id)
+                self.logger.debug("Timeout getting stats for %s" % container.short_id)
             except requests.exceptions.ConnectionError:
-                self.logger.info("Connection error getting stats for %s" % container.short_id)
+                self.logger.debug("Connection error getting stats for %s" % container.short_id)
             except requests.packages.urllib3.exceptions.ReadTimeoutError:
-                self.logger.info("Connection error getting stats for %s" % container.short_id)
+                self.logger.debug("Connection error getting stats for %s" % container.short_id)
             except:  # pylint: disable=broad-except
                 self.logger.exception("Error collecting stats for %s" % container.short_id)
 
@@ -619,7 +622,9 @@ class Swarm(object):
                 for k, v in self.containers.items():
                     container = {'id': k, 'name': v['name']}
                     node_id = v['node']['id']
-                    service_id = v['service']['id']
+                    service_id = None
+                    if v['service']:
+                        service_id = v['service']['id']
                     stats = self.threads.get(k, None)
 
                     swarm_stats['containers'].append(container)
@@ -640,7 +645,7 @@ class Swarm(object):
                                 nodes_stats[node_id]['cores']['used'] += stats['cores']
                             if stats['memory']:
                                 nodes_stats[node_id]['memory']['used'] += stats['memory']
-                        if not any(d['id'] == service_id for d in nodes_stats[node_id]['services']):
+                        if service_id and not any(d['id'] == service_id for d in nodes_stats[node_id]['services']):
                             nodes_stats[node_id]['services'].append(v['service'])
 
                     if service_id in services_stats:
@@ -735,7 +740,7 @@ class Swarm(object):
                 time_bin = now.replace(day=15, hour=0, minute=0, second=0, microsecond=0)
             delta = None
         else:
-            self.logger.warning("Could not compute stats for % for period=%s" % (what, period))
+            self.logger.warning("Could not compute stats for %s for period=%s" % (what, period))
             return
 
         data = copy.deepcopy(data)
