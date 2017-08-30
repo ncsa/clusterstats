@@ -36,3 +36,16 @@ To run swarmscale container:
 ```
 docker run --rm -it --publish 7777:7777 -e 'TZ=/usr/share/zoneinfo/US/Central' -e "MONGO_URL=mongodb://mongohostname:port" -e "SWARM_URL=http://username:passwd@swarmhostname:port" -e "Rabbitmq_URLS={'swarm-prefix1' : 'amqp://username:passwd@host:port/vhost1', 'swarm-prefix2' : 'amqp://username:passwd@host:port/vhost2'}" --name swarmscale bingzhang/swarmscale
 ```
+
+Current scale DB tuple example:
+```
+vhost	    | service_name 	          | queue_name 	  | timestamp 	                  | decision | replica | message_ready | consumer
+clowder-dev | dev-extractor-ncsa_cv_faces | ncsa.cv.faces | Wed, 30 Aug 2017 15:38:36 GMT | scale up | 2       | 100	       | 1
+```
+
+Simple Query on scale decision:
+```
+sample query like:
+api/events?last=100&decision=scale%20up&queue_name=siegfried&vhost=dap-dev
+```
+
