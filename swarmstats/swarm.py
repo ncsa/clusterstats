@@ -136,7 +136,7 @@ class Swarm(object):
         return self._service_update(service, force=True)
 
     def service_scale(self, service, count):
-        self.logger.info("Scaling service with name/id %s to %d replicas" % (service, count))
+        self.logger.info("Scaling service with name/id %s to %s replicas" % (service, count))
         return self._service_update(service, count=count)
 
     def _service_update(self, service, count=None, force=False):
