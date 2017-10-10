@@ -1,3 +1,46 @@
+# Services to Manage Docker Swarm for Brown Dog
+This repo contains three services which are used to run the Brown Dog swarm:
+
+1. SwarmStats - Manages deployment and deletion of services in the swarm.
+Has a dashboard to show the status of all deployed services.
+
+ 2. SwarmScale - monitors the rabbit queues and scales up/down the number of instances
+ of a service to meet demand
+
+ 3. SwarmToolCatalog - Deprecated
+
+## Development
+To run a `swarmstats` locally as a developer you need to have docker installed on your
+workstation.
+
+Conveniently, docker comes with swarm installed. You need to enable swarm'ing with the
+command `docker swarm init`
+
+Then you can run swarmstats as
+
+```commandline
+python3 server.py --swarm unix://var/run/docker.sock
+```
+
+Note that on MacOS, the node service runs inside the docker machine and
+advertises a port that is not accesable outside the machine. This
+causes the swarmstats server to report socket timeout exceptions
+when the service attempts to communicate with the nodes.
+
+You can access your dashboard at: `http://localhost:9999`
+
+You can see details on each of the deployed services at: `http://localhost:9999/api/services?full=1`
+
+By default, the service is secured with
+
+|username|password|
+|:---------:|:--------:|
+| admin  |  secret|
+| viewer |  secret|
+
+
+## Production Deployment
+
 To create a cluster run:
   ./cluster.sh
 
