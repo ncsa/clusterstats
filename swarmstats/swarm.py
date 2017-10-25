@@ -131,15 +131,23 @@ class Swarm(object):
             self.logger.exception("Could not create service.")
             return False, str(e)
 
+    def service_stop(self, service):
+        self.logger.info("Stopping service with name/id %s" % service)
+        data = {'count': 0, 'labels': {'bd.replicas.max': "0", 'bd.replicas.min': "0"}}
+        self._service_update(service, **data)
+
     def service_update(self, service):
         self.logger.info("Updating service with name/id %s to latest image" % service)
         return self._service_update(service, force=True)
 
     def service_scale(self, service, count):
         self.logger.info("Scaling service with name/id %s to %s replicas" % (service, count))
-        return self._service_update(service, count=count)
+        data = {'count': count}
+        return self._service_update(service, **data)
 
-    def _service_update(self, service, count=None, force=False):
+    def _service_update(self, service, force=False, **data):
+        count = data.get("count", None)
+
         (k, v) = utils.find_item(self.services, service)
         if k:
             client = docker.APIClient(self.swarm_url, version='auto')
@@ -233,11 +241,13 @@ class Swarm(object):
                 else:
                     endpoint_spec = None
 
+                labels = spec.get('Labels', {})
+                labels.update(data.get('labels', {}))
                 if client.update_service(k,
                                          version=s['Version']['Index'],
                                          task_template=task_template,
                                          name=spec['Name'],
-                                         labels=spec.get('Labels', None),
+                                         labels=labels,
                                          mode=mode,
                                          update_config=update_config,
                                          networks=spec.get('Networks', None),

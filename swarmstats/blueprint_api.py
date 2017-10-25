@@ -160,6 +160,17 @@ def api_services_restart(service):
         return flask.Response('service "%s" not found' % service, status=404)
 
 
+@blueprint.route('/services/<service>/stop', methods=['POST'])
+@utils.requires_user("admin")
+def api_services_stop(service):
+    (k, _) = utils.find_item(swarm.instance.services, service)
+    if k:
+        swarm.instance.service_stop(k)
+        return flask.Response('service %s stopped' % service)
+    else:
+        return flask.Response('service "%s" not found' % service, status=404)
+
+
 @blueprint.route('/services/<service>/update', methods=['POST'])
 @utils.requires_user("admin")
 def api_services_update(service):
