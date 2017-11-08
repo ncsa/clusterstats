@@ -1,3 +1,8 @@
-wheel==0.24.0
+docker==2.2.1
+Flask==0.12.1
+Flask-Cors==3.0.2
+python-dateutil==2.6.0
+setuptools==18.0.1
 pytest==3.0.3
 pytest-pep8==1.0.6
+wheel==0.24.0
