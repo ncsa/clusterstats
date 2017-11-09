@@ -133,6 +133,13 @@ def api_services_create():
         return flask.Response('invalid data posted, expected JSON', status=400)
 
 
+@blueprint.route('/services/<service>', methods=['DELETE'])
+@utils.requires_user("admin")
+def api_services_remove(service):
+    response = swarm.instance.service_remove(service)
+    return flask.Response(response, mimetype='text/ascii')
+
+
 @blueprint.route('/services/<service>/logs')
 @utils.requires_user("admin", "viewer")
 def api_services_logs(service):

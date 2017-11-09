@@ -136,6 +136,34 @@ class Swarm(object):
         data = {'count': 0, 'labels': {'bd.replicas.max': "0", 'bd.replicas.min': "0"}}
         self._service_update(service, **data)
 
+    def service_remove(self, service):
+        self.logger.info("remove service with name/id %s" % service)
+        result = "successfully removed service " + service
+        (k, v) = utils.find_item(self.services, service)
+        removed = False
+        if k:
+            client = docker.APIClient(self.swarm_url, version='auto')
+            try:
+                removed = client.remove_service(k)
+            except docker.errors.APIError:
+                result = "failed to remove service" + service
+        else:
+            result = "failed to remove nonexistent service '%s'" % service
+        if removed:
+            # update in-memory storage.
+            try:
+                with self.lock:
+                    self.swarm['services'].remove(k)
+                    self.services.pop(k, None)
+                    for container_id in v.containers:
+                        self.containers.pop(container_id, None)
+                    for node_id in v.nodes:
+                        self.nodes.pop(node_id, None)
+            except Exception as err:
+                # it is fine to have exception here.
+                self.logger.debug(err)
+        return result
+
     def service_update(self, service):
         self.logger.info("Updating service with name/id %s to latest image" % service)
         return self._service_update(service, force=True)
