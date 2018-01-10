@@ -100,7 +100,7 @@ def requires_user(*users):
         def wrapped(*args, **kwargs):
             auth = flask.request.authorization
             if not auth or not check_auth(auth.username, auth.password):
-                return flask.Response(headers={'WWW-Authenticate': 'Basic realm="swarmstats"'}, status=401)
+                return flask.Response(headers={'WWW-Authenticate': 'Basic realm="clusterstats"'}, status=401)
             elif auth.username not in users:
                 return flask.abort(403)
             else:

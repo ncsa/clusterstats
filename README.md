@@ -18,8 +18,12 @@ command `docker swarm init`
 
 Then you can run swarmstats as
 
-```commandline
+```Run as Script:
 python3 server.py --swarm unix://var/run/docker.sock
+```
+
+```Run as Docker container:
+docker run --rm -it -p 9999:9999 -v /var/run/docker.sock:/var/run/docker.sock clusterstats/clusterstats --swarm unix:////var/run/docker.sock
 ```
 
 Note that on MacOS, the node service runs inside the docker machine and
@@ -103,3 +107,8 @@ To run swarmtoolcatalog container:
 ```
 docker run --rm -it --publish 5555:5555 -e 'DEPLOY_QUEUENAME=deploy_queuename' -e 'TZ=/usr/share/zoneinfo/US/Central' -e "MONGO_URL=mongodb://mongohostname:port" -e "SWARM_URL=http://username:passwd@swarmhostname:port" -e "Rabbitmq_URLS={'swarm-prefix1' : 'amqp://username:passwd@host:port/vhost1?extra_params', 'swarm-prefix2' : 'amqp://username:passwd@host:port/vhost2?extra_params'}" --name swarmtoolcatalog bingzhang/swarmtoolcatalog
 ```
+
+### Unit Test
+unit test is based on python unittest module, any test framework support unittest can be used. E.g., if install pytest and nose2, then run unit test:
+python3 -m pytest
+python3 -m nose2

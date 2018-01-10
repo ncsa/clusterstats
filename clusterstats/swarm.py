@@ -17,7 +17,7 @@ import docker.types
 import requests.exceptions
 import requests.packages.urllib3.exceptions
 
-import utils
+from clusterstats import utils
 
 
 instance = None

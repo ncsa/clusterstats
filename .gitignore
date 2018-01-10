@@ -1,4 +1,6 @@
 .idea
 .env
+.cache
 __pycache__
 test-reports
+stats.json

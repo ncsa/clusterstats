@@ -14,10 +14,11 @@ RUN mkdir -p /data
 
 WORKDIR /src
 
-COPY requirements.txt /src
+COPY requirements.txt /src/
 RUN pip install -r requirements.txt
 
-COPY clusterstats /src/
+COPY server.py /src/
+COPY clusterstats /src/clusterstats
 
 ENTRYPOINT [ "python", "./server.py" ]
 CMD [ "--help" ]

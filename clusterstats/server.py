@@ -12,12 +12,11 @@ import flask.ext
 import flask_cors
 from werkzeug.contrib.fixers import ProxyFix
 
-import blueprint_api
-import blueprint_html
-import swarm
-import utils
-
-software_version = '1.0'
+from clusterstats import blueprint_api
+from clusterstats import blueprint_html
+from clusterstats import swarm
+from clusterstats import utils
+from clusterstats import version
 
 
 def main():
@@ -39,7 +38,7 @@ def main():
                         help='timeout for docker operations')
     parser.add_argument('--users', '-u', default=os.getenv("USERS", None),
                         help='users as json representation')
-    parser.add_argument('--version', action='version', version='%(prog)s version=' + software_version)
+    parser.add_argument('--version', action='version', version='%(prog)s version=' + version.software_version)
     args = parser.parse_args()
 
     # setup logging
@@ -74,7 +73,7 @@ def main():
             logger.exception("Error reading users.json")
 
     # setup app
-    app = flask.Flask('swarmstats')
+    app = flask.Flask("clusterstats")
     app.wsgi_app = ProxyFix(app.wsgi_app)
     if args.context:
         context = args.context.rstrip('/')

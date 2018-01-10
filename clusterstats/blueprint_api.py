@@ -4,14 +4,14 @@ import time
 
 import flask
 
-import server
-import swarm
-import utils
+from clusterstats import swarm
+from clusterstats import utils
+from clusterstats import version
 
 blueprint = flask.Blueprint('api',  __name__)
 
 version = {
-    'version': server.software_version,
+    'version': version.software_version,
     'build': os.getenv('BUILD', 'unknown'),
     'updates': {'services': None, 'nodes': None, 'containers': None}
 }
@@ -24,6 +24,7 @@ version = {
 @blueprint.route('/version')
 @utils.requires_user("admin", "viewer")
 def api_version():
+    global version
     version['updates'] = swarm.instance.updates
     return flask.jsonify(version)
 

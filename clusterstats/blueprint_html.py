@@ -1,7 +1,7 @@
 import flask
 
-import utils
-import swarm
+from clusterstats import swarm
+from clusterstats import utils
 
 blueprint = flask.Blueprint('html',  __name__, static_folder='static', template_folder='templates')
 
