@@ -418,7 +418,8 @@ class Swarm(object):
                         disk = self.disksize
                         hostname = description['Hostname']
                         if 'Addr' in attrs['Status']:
-                            if attrs['Status']['Addr'] == "127.0.0.1":
+                            if attrs['Status']['Addr'] == "127.0.0.1" \
+                                    or "docker.sock" in self.swarm_url.lower():
                                 node_url = self.swarm_url
                             else:
                                 node_url = 'tcp://%s:2375' % attrs['Status']['Addr']
