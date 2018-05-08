@@ -112,3 +112,13 @@ docker run --rm -it --publish 5555:5555 -e 'DEPLOY_QUEUENAME=deploy_queuename' -
 unit test is based on python unittest module, any test framework support unittest can be used. E.g., if install pytest and nose2, then run unit test:
 python3 -m pytest
 python3 -m nose2
+
+
+### Testing on local development machine
+
+If you have a remote cluster running you can use the following to test the code with the mote cluster (following works for BrownDog with development setup).
+
+1. install socks module: `pip install -U requests[socks]`
+2. ssh to system that is needed to access swarm cluster with proxy (-D) flag `ssh -C -D 1080 bd-bastion`
+3. start program after adding `http_proxy` flag to environment variables (`http_proxy=socks5://127.0.0.1:1080`)
+4. start server.py with `--swarm 192.168.5.146:2375`
