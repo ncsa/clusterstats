@@ -413,10 +413,10 @@ class Swarm(object):
                     if node.short_id not in self.nodes:
                         description = attrs['Description']
                         resources = description['Resources']
-                        cores = int(resources['NanoCPUs'] / 1000000000)
-                        memory = resources['MemoryBytes']
+                        cores = int(resources.get('NanoCPUs', 0) / 1000000000)
+                        memory = resources.get('MemoryBytes', 0)
                         disk = self.disksize
-                        hostname = description['Hostname']
+                        hostname = description.get('Hostname', "N/A")
                         if 'Addr' in attrs['Status']:
                             if attrs['Status']['Addr'] == "127.0.0.1" \
                                     or "docker.sock" in self.swarm_url.lower():
