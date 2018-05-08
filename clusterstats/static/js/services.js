@@ -3,6 +3,7 @@ function organize(res) {
 	$.each(res, function(k, v) {
 		rows.push({
 			name: v.name,
+            image: v.image,
 			replicas: v.replicas,
 			cores: v.cores,
 			memory: v.memory,
